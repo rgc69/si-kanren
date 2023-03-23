@@ -140,12 +140,4 @@
                        (case (read)
                          ((y yes) (named-loop (pull (cdr $))))
                          (t (format t "bye!")))))))))
-(macroexpand '(nlet-tail named-loop (($ (pull $)))
-                   (if (equal $ '())
-                       (format t  "thats-all!~%")
-                       (values (format t "~S~%" (reify-state/1st-var (car $)))
-                               (format t "another? y/n~%")
-                               (case (read)
-                                 ((y yes) (named-loop (pull (cdr $))))
-                                 (t (format t "bye!")))))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
