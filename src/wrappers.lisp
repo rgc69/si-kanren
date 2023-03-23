@@ -84,23 +84,25 @@
 
 (defmacro run (num (&rest queries) &body goals)
   (let ((q (gensym)))
-       `(mK-reify
-           (take ,num
-                     (call/empty-state
-                                (fresh (,q ,@queries)
-                                       (conj+
-                                         (== `(,,@queries) ,q)
-                                         ,@goals)))))))
+       `(format t "~{~a~^ ~}"
+          (mK-reify
+             (take ,num
+                       (call/empty-state
+                                  (fresh (,q ,@queries)
+                                         (conj+
+                                           (== `(,,@queries) ,q)
+                                           ,@goals))))))))
 
 (defmacro run* ((&rest queries) &body goals)
   (let ((q (gensym)))
-       `(mK-reify
-           (take-all
-                     (call/empty-state
-                                (fresh (,q ,@queries)
-                                       (conj+
-                                         (== `(,,@queries) ,q)
-                                         ,@goals)))))))
+       `(format t "~{~a~^ ~}"
+                (mK-reify
+                   (take-all
+                             (call/empty-state
+                                        (fresh (,q ,@queries)
+                                               (conj+
+                                                 (== `(,,@queries) ,q)
+                                                 ,@goals))))))))
 
 (defmacro nlet-tail (n letargs &rest body)
       (let ((gs (loop for i in letargs
@@ -135,7 +137,7 @@
         (nlet-tail named-loop (($ (pull $)))
            (if (equal $ '())
                (format t  "thats-all!~%")
-               (values (format t "~S~%" (reify-state/1st-var (car $)))
+               (values (format t "~{~a~^ ~}~%" (reify-state/1st-var (car $)))
                        (format t "another? y/n~%")
                        (case (read)
                          ((y yes) (named-loop (pull (cdr $))))
