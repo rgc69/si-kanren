@@ -2,7 +2,7 @@
 
 *sī-Kanren*     is      based      on      the      2013     Scheme     Workshop
 [paper](http://webyrd.net/scheme-2013/papers/HemannMuKanren2013.pdf)   by  Jason
-Hemann  and  Dan Friedman.  Other  resources  are  available  at  the miniKanren
+Hemann  and  Dan Friedman.  Other  resources  are  available  on  the miniKanren
 [website]( http://minikanren.org).  It's  written  in  "pure"  and simple Common
 Lisp,  without external libraries like  pmatch,  guard or things like that,  nor
 record types or structs. The **constraint  store** in fact,  as a whole,  has the form:
