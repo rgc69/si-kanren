@@ -107,9 +107,8 @@
                   collect (gensym)))
             (gb (gensym))
             (gn (gensym)))
-        (let ((gn n))
          `(macrolet
-             ((,gn ,gs
+             ((,n ,gs
                `(progn
                   (psetq
                       ,@(apply #'nconc
@@ -122,7 +121,7 @@
               (let ,letargs
                 (tagbody
                   ,gn (return-from
-                         ,gb (progn ,@body)))))))))
+                         ,gb (progn ,@body))))))))
 
 
 (defmacro runi ((&rest queries) &body goals)
@@ -141,5 +140,12 @@
                        (case (read)
                          ((y yes) (named-loop (pull (cdr $))))
                          (t (format t "bye!")))))))))
-
+(macroexpand '(nlet-tail named-loop (($ (pull $)))
+                   (if (equal $ '())
+                       (format t  "thats-all!~%")
+                       (values (format t "~S~%" (reify-state/1st-var (car $)))
+                               (format t "another? y/n~%")
+                               (case (read)
+                                 ((y yes) (named-loop (pull (cdr $))))
+                                 (t (format t "bye!")))))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
