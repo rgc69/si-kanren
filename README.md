@@ -30,7 +30,7 @@ like a trick of magic too beautiful to not include it. :magic_wand:
 4. *Interactive* request of a solution/s, with `runi`.
 5. Pretty *formatting* of the answer/s.
 
-### Usage
+### Usage[^0]
 Many examples can be found in the *playground* file.
 
 
@@ -41,7 +41,7 @@ Many examples can be found in the *playground* file.
 
 - I took the *Zebra Puzzle* example [here](https://alex-hhh.github.io/2021/08/fish-puzzle.html)[^2].
 
-- The version of the *named-let* macro (among others things), from [Let Over Lambda](https://letoverlambda.com/), by Doug Hoyte (@hoytech).
+- The version of the *nlet-tail* macro (among others things), from [Let Over Lambda](https://letoverlambda.com/), by Doug Hoyte (@hoytech).
 
 - And, of course, last but not least, many thank's to @webyrd for his sensational [work](https://github.com/webyrd)!
 
@@ -50,10 +50,10 @@ since compared to microKanren *sī-Kanren* also contains the disequality store, 
 to me a fair way to give credit to this system. :grin: And since I think it can
 be pronounced like a *c* (more or less...), as in **C**ommon Lisp, the **c**ircle **c**loses[^3].
 
+[^0]: Tested on SBCL v. 2.3.0
 [^1]: @blasut Thank's for your work! By the way, I think there's really no need
 to carry around this `'false` thing, just stick to a plain and lispy list of...
-nothing. But, it was useful to me in the first place to discover a subtle bug in
-disequality (because you can't normalize 'false; I know, not your problem),
+nothing. But, it was useful to me in the first place to discover a subtle bug in the disequality store (because you can't *normalize* 'false; I know, not your problem),
 without which I could have been totally not aware! So, for me, the
 moral of this story is... testing!
 [^2]: @alex-hhh Hope it's ok for you! Here's the [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) license link.
