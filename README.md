@@ -45,10 +45,10 @@ Many examples can be found in the *playground* file.
 
 - And, of course, last but not least, many thank's to @webyrd for his sensational [work](https://github.com/webyrd)!
 
-As for the name, *sī*   is the Chinese unit of measurement for **10** micrometers:
+As for the name, *sī*    is the Chinese unit of measurement for **10** micrometers:
 since compared to microKanren *sī-Kanren* also contains the disequality store, it seemed
 to me a fair way to give credit to this system. :grin: And since I think it can
-be pronounced like a *c*, as in **C**ommon Lisp, the **c**ircle **c**loses[^3].
+be pronounced like a *c* (more or less...), as in **C**ommon Lisp, the **c**ircle **c**loses[^3].
 
 [^1]: @blasut Thank's for your work! By the way, I think there's really no need
 to carry around this `'false` thing, just stick to a plain and lispy list of...
