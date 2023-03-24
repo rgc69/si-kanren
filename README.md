@@ -15,7 +15,7 @@ For more information:
 - Excellent survey paper on unification: [Kevin Knight](http://www.isi.edu/natural-language/people/unification-knight.pdf).
 - Disunification papers: [Hubert Comon , Pierre Lescanne](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.139.4769).
   - [Hubert Comon](http://citeseer.uark.edu:8080/citeseerx/viewdoc/summary?doi=10.1.1.48.8234)
-- Combining Unification- and Disunification Algorithms: [Klaus U. Schulz](http://citeseer.uark.edu:8080/citeseerx/viewdoc/summary?doi=10.1.1.49.7617).
+- Combining Unification and Disunification Algorithms: [Klaus U. Schulz](https://www.cis.uni-muenchen.de/otherpublications/cis_berichte/cis-96-099.html).
 - And, above all, the [miniKanren uncourse series](https://www.youtube.com/playlist?list=PLO4TbomOdn2cks2n5PvifialL8kQwt0aW), by William Byrd!
 
 

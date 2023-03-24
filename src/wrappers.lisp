@@ -48,7 +48,10 @@
             '())))))
 
 (defun mK-reify (s/c/d)
-  (map 'list #'reify-state/1st-var s/c/d))
+  (let ((S (map 'list #'reify-state/1st-var s/c/d)))
+    (if (cdr S)
+        (format t "~{~a~^ ~}" S)
+        (format t "~{~a~^ ~}" (car S)))))
 
 (defun walk* (v s)
   (let ((v (walk v s)))
@@ -84,25 +87,23 @@
 
 (defmacro run (num (&rest queries) &body goals)
   (let ((q (gensym)))
-       `(format t "~{~a~^ ~}"
-          (mK-reify
-             (take ,num
-                       (call/empty-state
-                                  (fresh (,q ,@queries)
-                                         (conj+
-                                           (== `(,,@queries) ,q)
-                                           ,@goals))))))))
+      `(mK-reify
+          (take ,num
+                    (call/empty-state
+                               (fresh (,q ,@queries)
+                                      (conj+
+                                        (== `(,,@queries) ,q)
+                                        ,@goals)))))))
 
 (defmacro run* ((&rest queries) &body goals)
   (let ((q (gensym)))
-       `(format t "~{~a~^ ~}"
-                (mK-reify
-                   (take-all
-                             (call/empty-state
-                                        (fresh (,q ,@queries)
-                                               (conj+
-                                                 (== `(,,@queries) ,q)
-                                                 ,@goals))))))))
+      `(mK-reify
+          (take-all
+                    (call/empty-state
+                               (fresh (,q ,@queries)
+                                      (conj+
+                                        (== `(,,@queries) ,q)
+                                        ,@goals)))))))
 
 (defmacro nlet-tail (n letargs &rest body)
       (let ((gs (loop for i in letargs
