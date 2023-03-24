@@ -43,8 +43,8 @@
    (o (cons (lvar 0)
         (if (and (not (equal (cdr s/c/d) '(())))
                  (not (equal (cdr s/c/d) '())))
-            `(and . ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) , (cdr dis))) mini)))
-                          (cdr s/c/d)))
+            `(where . ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
+                            (cdr s/c/d)))
             '())))))
 
 (defun mK-reify (s/c/d)
@@ -137,10 +137,10 @@
                                             ,@goals))))))
         (nlet-tail named-loop (($ (pull $)))
            (if (equal $ '())
-               (format t  "thats-all!~%")
+               (format t "thats-all!~%")
                (values (format t "~{~a~^ ~}~%" (reify-state/1st-var (car $)))
                        (format t "another? y/n~%")
                        (case (read)
                          ((y yes) (named-loop (pull (cdr $))))
-                         (t (format t "bye!")))))))))
+                         (t (format nil "bye!")))))))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

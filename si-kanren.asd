@@ -6,7 +6,7 @@
 (defsystem "si-kanren"
   :version "0.1.0"
   :author "rgc"
-  :license "BSD"
+  :license "MIT"
   :components ((:module "src"
                 :serial t
                 :components
