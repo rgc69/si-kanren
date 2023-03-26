@@ -60,7 +60,7 @@
     (let ((S (map 'list #'reify-state/1st-var s/c/d)))
        (if (cdr S)
            (format t "~{~a~%~^ ~}" S)
-           (format t "~{~a~%~^ ~}" (car S)))))
+           (format t "~{~a~^ ~}" (car S)))))
 
 (defun walk* (v s)
   (let ((v (walk v s)))
