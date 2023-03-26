@@ -25,7 +25,7 @@ For more information:
 1. core miniKanren (`fresh`,  `conde`,  `==`).
 2. `=/=` constraint,  and thus it's  the first microKanren  written in Common  Lisp with this  feature (at
 least, as far as I know).
-3.  Reification of **all** the logic queries variables `x x0...` in `(run _ (x x0...)...)`.  It looks
+3.  *Reification* of **all** the logic queries variables `x x0...` in `(run _ (x x0...)...)`.  It looks
 like a trick of magic too beautiful to not include it. :magic_wand:
 4. *Interactive* request of a solution/s, with `runi`.
 5. Pretty *formatting* of the answer/s.
@@ -35,11 +35,11 @@ Many examples can be found in the *playground* file.
 
 
 ### Credits
-- Inspiration for a simple implementation in Common Lisp, from [cl-microkanren](https://github.com/blasut/cl-microkanren)[^1].
+- Inspiration for a simple implementation in Common Lisp, from [cl-microkanren](https://github.com/blasut/cl-microkanren).
 
 - Inspiration for the implementation of the disequality store, from [microKanren-sagittarius](https://github.com/orchid-hybrid/microKanren-sagittarius).
 
-- I took the *Zebra Puzzle* example [here](https://alex-hhh.github.io/2021/08/fish-puzzle.html)[^2].
+- I took the *Zebra Puzzle* example [here](https://alex-hhh.github.io/2021/08/fish-puzzle.html)[^1].
 
 - The version of the *nlet-tail* macro (among others things), from [Let Over Lambda](https://letoverlambda.com/), by Doug Hoyte (@hoytech).
 
@@ -48,13 +48,8 @@ Many examples can be found in the *playground* file.
 As for the name, *sī*    is the Chinese unit of measurement for **10** *micro*meters:
 since compared to microKanren *sī-Kanren* also contains the disequality store, it seemed
 to me a fair way to give credit to this system. :grin: And since I think it can
-be pronounced like a *c* (more or less...), as in **C**ommon Lisp, the **c**ircle **c**loses[^3].
+be pronounced like a *c* (more or less...), as in **C**ommon Lisp, the **c**ircle **c**loses[^2].
 
 [^0]: Tested on SBCL v. 2.3.0
-[^1]: @blasut Thank's for your work! By the way, I think there's really no need
-to carry around this `'false` thing, just stick to a plain and lispy list of...
-nothing. But, it was useful to me in the first place to discover a subtle bug in the disequality store (because you can't *normalize* 'false; I know, not your problem),
-without which I could have been totally not aware! So, for me, the
-moral of this story is... testing!
-[^2]: @alex-hhh Hope it's ok for you! Here's the [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) license link.
-[^3]: Cit.: The Stand, Stephen King
+[^1]: @alex-hhh Hope it's ok for you! Here's the [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) license link.
+[^2]: Cit.: The Stand, Stephen King
