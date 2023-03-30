@@ -44,9 +44,9 @@
         (if (and (not (equal (cdr s/c/d) '(())))
                  (not (equal (cdr s/c/d) '())))
             (if (or (cddr s/c/d)(cdadr s/c/d))
-                `(where . ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(,(car dis) =/=  ,(cdr dis))) mini)))
+                `(where . ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
                                 (cdr s/c/d)))
-                `(where . ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(,(car dis) =/=  ,(cdr dis))) mini))
+                `(where . ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
                                 (cdr s/c/d))))
             '())))))
 
@@ -55,7 +55,6 @@
         nil
      (if (cdr s/c/d)
          (setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
-         ;s/c/d)
          (setq s/c/d (cons (remove nil (car s/c/d)) '()))))
     (let ((S (map 'list #'reify-state/1st-var s/c/d)))
        (if (cdr S)
