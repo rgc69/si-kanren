@@ -44,9 +44,9 @@
         (if (and (not (equal (cdr s/c/d) '(())))
                  (not (equal (cdr s/c/d) '())))
             (if (or (cddr s/c/d)(cdadr s/c/d))
-                `(where . ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(,(car dis) =/=  ,(cdr dis))) mini)))
+                `(where . ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
                                 (cdr s/c/d)))
-                `(where . ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(,(car dis) =/=  ,(cdr dis))) mini))
+                `(where . ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
                                 (cdr s/c/d))))
             '())))))
 
@@ -55,7 +55,6 @@
         nil
      (if (cdr s/c/d)
          (setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
-         ;s/c/d)
          (setq s/c/d (cons (remove nil (car s/c/d)) '()))))
     (let ((S (map 'list #'reify-state/1st-var s/c/d)))
        (if (cdr S)
@@ -94,25 +93,44 @@
       (t `(call/fresh (lambda (,(car (car e)))
                             (fresh ,(cdr (car e)) ,@(cdr e)))))))
 
+
 (defmacro run (num (&rest queries) &body goals)
-  (let ((q (gensym)))
-      `(mK-reify
-          (take ,num
-                    (call/empty-state
-                               (fresh (,q ,@queries)
-                                      (conj+
-                                        (== `(,,@queries) ,q)
-                                        ,@goals)))))))
+  `(multiple-value-bind (n s/c/d) (runno ,num (,@queries) ,@goals)
+    (if (equal s/c/d nil)
+        nil
+        (let ((tot (cdaar s/c/d)))
+          ;(if (fresh-search 0 (cdar s/c/d))
+           (mK-reify (cons (cons (caar s/c/d) (norm (+ 3 n) tot (cdar s/c/d))) ()))))))
+            ;nil)))))
 
 (defmacro run* ((&rest queries) &body goals)
+  `(multiple-value-bind (n s/c/d) (runno* (,@queries) ,@goals)
+    (if (equal s/c/d nil)
+        nil
+        (let ((tot (cdaar s/c/d)))
+         (mK-reify (cons (cons (caar s/c/d) (norm (+ 1 n) tot (cdar s/c/d))) ()))))))
+
+(defmacro runno (num (&rest queries) &body goals)
   (let ((q (gensym)))
-      `(mK-reify
-          (take-all
-                    (call/empty-state
-                               (fresh (,q ,@queries)
-                                      (conj+
-                                        (== `(,,@queries) ,q)
-                                        ,@goals)))))))
+    `(values-list
+       (append (multiple-value-list (length ',queries))
+               (multiple-value-list (take ,num
+                                            (call/empty-state
+                                                       (fresh (,q ,@queries)
+                                                              (conj+
+                                                                (== `(,,@queries) ,q)
+                                                                ,@goals)))))))))
+
+(defmacro runno* ((&rest queries) &body goals)
+  (let ((q (gensym)))
+    `(values-list
+      (append (multiple-value-list (length ',queries))
+              (multiple-value-list (take-all
+                                     (call/empty-state
+                                                (fresh (,q ,@queries)
+                                                       (conj+
+                                                         (== `(,,@queries) ,q)
+                                                         ,@goals)))))))))
 
 (defmacro nlet-tail (n letargs &rest body)
       (let ((gs (loop for i in letargs
@@ -153,3 +171,34 @@
                          ((y yes) (named-loop (pull (cdr $))))
                          (t (format nil "bye!")))))))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun fresh-search (x l)
+  (if (equal nil l)
+      '()
+      (if (lvar=? (lvar x) (caaar l))
+          t
+          (cons (car l)(fresh-search x (cdr l))))))
+
+(defun normalize-fresh (x l)
+  (if (equal nil l)
+      '()
+      (if (lvar=? (lvar x) (caaar l))
+          (normalize-fresh x (cdr l))
+          (cons (car l)(normalize-fresh x (cdr l))))))
+
+(defun norm (n m l)
+  (do ((cnt n (+ cnt 1))
+       (z l))
+      ((eq cnt m) z)
+      (setq z (normalize-fresh cnt z))))
+
+;(apply 'concatenate 'list ....) non va bene flatten
+
+;(defun walk-vect (v d)
+  ;(if (and (lvar? v)
+           ;(pair? d)
+           ;(the-pos v d)))
+
+ ;(defun walk (u s)
+       ;(walk (cdr (elt s (the-pos u s))) s)
+       ;u))
