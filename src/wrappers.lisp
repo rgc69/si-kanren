@@ -146,21 +146,16 @@
 
 
 (defmacro runi ((&rest queries) &body goals)
-  (let ((q (gensym)))
-      `(let (($ (take-all
-                      (call/empty-state
-                                   (fresh (,q ,@queries)
-                                          (conj+
-                                            (== `(,,@queries) ,q)
-                                            ,@goals))))))
-        (nlet-tail named-loop (($ (pull $)))
-           (if (equal $ '())
+      `(let* (($ (runno* (,@queries) ,@goals))
+              ($* (normalize-fresh-conde $)))
+        (nlet-tail named-loop (($* (pull $*)))
+           (if (equal $* '())
                (format t "thats-all!~%")
-               (values (format t "~{~a~^ ~}~%" (reify-state/1st-var (car $)))
+               (values (format t "~{~a~^ ~}~%" (reify-state/1st-var (car $*)))
                        (format t "another? y/n~%")
                        (case (read)
-                         ((y yes) (named-loop (pull (cdr $))))
-                         (t (format nil "bye!")))))))))
+                         ((y yes) (named-loop (pull (cdr $*))))
+                         (t (format nil "bye!"))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;   Getting rid of ghost vars ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
