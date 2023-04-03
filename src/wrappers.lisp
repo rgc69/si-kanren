@@ -106,7 +106,7 @@
   `(let ((s/c/d (runno ,num (,@queries) ,@goals)))
     (if (equal s/c/d nil)
         nil
-        (mK-reify (cons (cons (caar s/c/d) (cons (normalize-fresh s/c/d) ())) ())))))
+        (mK-reify (normalize-fresh-conde s/c/d)))))
 
 (defmacro runno* ((&rest queries) &body goals)
   (let ((q (gensym)))
@@ -121,7 +121,7 @@
   `(let ((s/c/d (runno* (,@queries) ,@goals)))
     (if (equal s/c/d nil)
         nil
-        (mK-reify (cons (cons (caar s/c/d) (cons (normalize-fresh s/c/d) ())) ())))))
+        (mK-reify (normalize-fresh-conde s/c/d)))))
 
 (defmacro nlet-tail (n letargs &rest body)
       (let ((gs (loop for i in letargs
@@ -161,7 +161,8 @@
                        (case (read)
                          ((y yes) (named-loop (pull (cdr $))))
                          (t (format nil "bye!")))))))))
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;   Getting rid of ghost vars ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun walk-queries (n s/c/d)
   (labels ((walk-q (s)
@@ -184,22 +185,36 @@
             (cons (lvar=? v (car l)) (lvar-or-atom v (cdr l)))
             (lvar-or-atom v (cdr l)))))))
 
-(defun flatten (lst &aux (re '()))
-  (cond
-    ((null lst) '())
-    ((listp (car lst))
-     (append (flatten (car lst))
-             (append (flatten (cdr lst))
-                     re)))
-    (t (cons (car lst)
-             (append (flatten (cdr lst)) re)))))
+(defun flatten-t (tree &key (include-nil t))
+  (check-type tree list)
+  (labels ((%flatten (lst accum)
+             (if (null lst)
+                 (nreverse accum)
+                 (let ((elem (first lst)))
+                   (if (atom elem)
+                       (%flatten (cdr lst) (if (or elem include-nil)
+                                               (cons elem accum)
+                                               accum))
+                       (%flatten (append elem (cdr lst)) accum))))))
+    (%flatten tree nil)))
 
 (defun normalize-fresh (s/c/d)
   (labels ((norm (l d)
              (if (equal nil d)
                  '()
-              (if (not (member 't (flatten (mapcar (lambda (x)(lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
+              (if (not (member 't (flatten-t (mapcar (lambda (x)(lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                   (norm l (cdr d))
                   (cons (car d)(norm l (cdr d)))))))
     (let ((d^ (apply 'concatenate 'list (cdar s/c/d))))
       (norm s/c/d d^))))
+
+(defun normalize (s/c/d)
+  (if (not (cdr s/c/d))
+      (normalize-fresh s/c/d)
+      (normalize-fresh (cons (car s/c/d) nil))))
+
+(defun normalize-fresh-conde (s/c/d)
+  (if (equal nil s/c/d)
+      '()
+      (cons (cons (caar s/c/d) (cons (normalize s/c/d) ()))
+            (normalize-fresh-conde (cdr s/c/d)))))
