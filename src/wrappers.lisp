@@ -202,11 +202,25 @@
 
 (defun normalize (s/c/d)
   (if (not (cdr s/c/d))
-      (normalize-fresh s/c/d)
-      (normalize-fresh (cons (car s/c/d) nil))))
+      (norm=lvars (normalize-fresh s/c/d))
+      (norm=lvars (normalize-fresh (cons (car s/c/d) nil)))))
 
 (defun normalize-fresh-conde (s/c/d)
   (if (equal nil s/c/d)
       '()
       (cons (cons (caar s/c/d) (cons (normalize s/c/d) ()))
             (normalize-fresh-conde (cdr s/c/d)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;  Getting rid of duplicates   ;;;;;;;;;;;;;;;;;;;
+
+(defun norm-cons (xs)
+ (if (not (consp (cdr xs)))
+     (cons (car xs) (cons (cdr xs)'()))
+     (cons (car xs) (norm-cons (cdr xs)))))
+
+(defun equal-lists (list1 list2)
+  (and (eq (null (intersection (norm-cons list1) (norm-cons list2) :test #'equalp)) nil)
+       (null (set-difference (norm-cons list1) (norm-cons list2) :test #'equalp))))
+
+(defun norm=lvars (d)
+  (remove-duplicates d :test #'equal-lists))
