@@ -104,9 +104,9 @@
 
 (defmacro run (num (&rest queries) &body goals)
   `(let ((s/c/d (runno ,num (,@queries) ,@goals)))
-    (if (equal s/c/d nil)
+    (if (null s/c/d)
         nil
-        (mK-reify (normalize-fresh-conde s/c/d)))))
+        (mK-reify (normalize-conde s/c/d)))))
 
 (defmacro runno* ((&rest queries) &body goals)
   (let ((q (gensym)))
@@ -119,9 +119,9 @@
 
 (defmacro run* ((&rest queries) &body goals)
   `(let ((s/c/d (runno* (,@queries) ,@goals)))
-    (if (equal s/c/d nil)
+    (if (null s/c/d)
         nil
-        (mK-reify (normalize-fresh-conde s/c/d)))))
+        (mK-reify (normalize-conde s/c/d)))))
 
 (defmacro nlet-tail (n letargs &rest body)
       (let ((gs (loop for i in letargs
@@ -147,7 +147,7 @@
 
 (defmacro runi ((&rest queries) &body goals)
       `(let* (($ (runno* (,@queries) ,@goals))
-              ($* (normalize-fresh-conde $)))
+              ($* (normalize-conde $)))
         (nlet-tail named-loop (($* (pull $*)))
            (if (equal $* '())
                (format t "thats-all!~%")
@@ -157,11 +157,70 @@
                          ((y yes) (named-loop (pull (cdr $*))))
                          (t (format nil "bye!"))))))))
 
-;;;;;;;;;;;;;;;;;;;;;;   Getting rid of ghost vars ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;    "Pars construens" of the reifier     ;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;   Getting rid of constraints subsumed by others constraints  ;;;;;;;;
+
+(defun eigenvalue (v)
+  (and (not (subsumed v)) (not (lvar? (cdr v)))))
+
+(defun subsumed (v)
+ (if (equal nil v)
+     '()
+     (if (consp (cdr v))
+         t
+         nil)))
+
+(defun normalize-subsumed (tree)
+   (let ((seen NIL)(lists-seen nil))
+     (labels ((rec (l)
+               (cond
+                 ((null l) NIL)
+                 ((member (car l) seen :test #'equal) (rec (cdr l)))
+                 ((subsumed (car l))(push (car l) lists-seen)(rec (cdr l)))
+                 (T (push (car l) seen) (rec (cdr l))))))
+       (rec tree)
+      (values seen
+              lists-seen))))
+
+(defun normalize-lists-seen (s ls)
+  (if (equal nil ls)
+      nil
+      (if (member (car s) (car ls) :test #'equal-lists)
+          (normalize-lists-seen s (cdr ls))
+          (cons (car ls)(normalize-lists-seen s (cdr ls))))))
+
+(defun remove-subsumed (d)
+  (multiple-value-bind (seen ls-seen)
+    (normalize-subsumed d)
+    (mapcar (lambda (si) (setq ls-seen (normalize-lists-seen si ls-seen))) seen)
+    (cons seen (cons ls-seen '()))))
+
+;;;;;;;;;;;;;;   Getting rid of duplicates, in a "set theory" sense   ;;;;;;;;;;;;;;;;;;;
+
+(defun norm-cons (xs)
+ (if (not (consp (cdr xs)))
+     (cons (car xs) (cons (cdr xs)'()))
+     (cons (car xs) (norm-cons (cdr xs)))))
+
+(defun dotted-pair-p (arg) (and (not (atom arg)) (not (listp (cdr arg)))))
+
+(defun equal-lists (list1 list2)
+  (if (dotted-pair-p list1)
+   (and (eq (null (intersection (norm-cons list1) (norm-cons list2) :test #'equalp)) nil)
+        (null (set-difference (norm-cons list1) (norm-cons list2) :test #'equalp)))
+   '()))
+
+(defun norm=lvars (d)
+  (remove-duplicates d :test #'equal-lists))
+
+;;;;;;;;;;;;;;;;;;;;;;   Getting rid of "ghost" vars ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun walk-queries (n s/c/d)
   (labels ((walk-q (s)
-             (if (equal nil s)
+             (if (null s)
                  '()
                  (if (lvar=? (lvar n) (caar s))
                      (car s)
@@ -170,11 +229,12 @@
      (walk-q s^))))
 
 (defun lvar-or-atom (v l)
+  "T if v in walking l is another lvar"
   (if (lvar? l)
       (lvar=? v l)
       (if (not (consp l))
        '()
-       (if (equal nil l)
+       (if (null l)
         '()
         (if (lvar? (car l))
             (cons (lvar=? v (car l)) (lvar-or-atom v (cdr l)))
@@ -192,35 +252,38 @@
 
 (defun normalize-fresh (s/c/d)
   (labels ((norm (l d)
-             (if (equal nil d)
+             (if (null d)
                  '()
-              (if (not (member 't (flatten (mapcar (lambda (x)(lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
+              (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                   (norm l (cdr d))
-                  (cons (car d)(norm l (cdr d)))))))
-    (let ((d^ (apply 'concatenate 'list (cdar s/c/d))))
-      (norm s/c/d d^))))
+                  (if (unused (car d) l)
+                      (norm l (cdr d))
+                      (cons (car d)(norm l (cdr d))))))))
+    (let ((d^ (apply 'concatenate 'list (apply 'concatenate 'list (remove-subsumed (cdar s/c/d))))))
+     (norm s/c/d d^))))
+
+;;;;;;;;;;;;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun unused (v l)
+ (cond
+   ((eigenvalue v) nil)
+   ((or (symbolp (cdr v)) (symbolp (cadr v))) nil)
+   ((member 't (flatten (mapcar (lambda (x) (lvar-or-atom (cdr v) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))) nil)
+   ((listp (cdr v))(not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (cadr v) (walk* x (caaar l)))) (cdr (walk-queries 0 l)))))))
+   ((listp (cdr v))(lvar-or-atom (cadr v)(walk* (cadr v) (caaar l))))
+   (T (lvar-or-atom (cdr v) (walk* (cdr v) (caaar l))))))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;  Normalize everything  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun normalize (s/c/d)
   (if (not (cdr s/c/d))
       (norm=lvars (normalize-fresh s/c/d))
       (norm=lvars (normalize-fresh (cons (car s/c/d) nil)))))
 
-(defun normalize-fresh-conde (s/c/d)
-  (if (equal nil s/c/d)
+(defun normalize-conde (s/c/d)
+  (if (null s/c/d)
       '()
       (cons (cons (caar s/c/d) (cons (normalize s/c/d) ()))
-            (normalize-fresh-conde (cdr s/c/d)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;  Getting rid of duplicates   ;;;;;;;;;;;;;;;;;;;
-
-(defun norm-cons (xs)
- (if (not (consp (cdr xs)))
-     (cons (car xs) (cons (cdr xs)'()))
-     (cons (car xs) (norm-cons (cdr xs)))))
-
-(defun equal-lists (list1 list2)
-  (and (eq (null (intersection (norm-cons list1) (norm-cons list2) :test #'equalp)) nil)
-       (null (set-difference (norm-cons list1) (norm-cons list2) :test #'equalp))))
-
-(defun norm=lvars (d)
-  (remove-duplicates d :test #'equal-lists))
+            (normalize-conde (cdr s/c/d)))))
