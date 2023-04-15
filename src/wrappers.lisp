@@ -267,7 +267,8 @@
 (defun unused (v l)
  (cond
    ((eigenvalue v) nil)
-   ((or (symbolp (cdr v)) (symbolp (cadr v))) nil)
+   ((symbolp (cdr v)) nil)
+   ((listp (cdr v))(not (symbolp (cadr v))))
    ((member 't (flatten (mapcar (lambda (x) (lvar-or-atom (cdr v) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))) nil)
    ((listp (cdr v))(not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (cadr v) (walk* x (caaar l)))) (cdr (walk-queries 0 l)))))))
    ((listp (cdr v))(lvar-or-atom (cadr v)(walk* (cadr v) (caaar l))))
