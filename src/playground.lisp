@@ -227,6 +227,40 @@
 ;(runi (x y)
       ;(appendo x y '(1 2 3 4 5)))
 
+(run 5 (x y) (== x y) (=/= x 5)(=/= y 9)(=/= x 3))
+
+(run 5 (x y) (conde
+               ((== x y) (=/= x 5)(=/= y 9)(=/= x 3))
+               ((fresh (a b)
+                      (== a 3)
+                      (== b 9)
+                      (== x a)
+                      (=/= y b)))))
+
+(run 5 (x y z) (fresh (a b c)
+                      (conde
+                        ((== x a)
+                         (== b z)
+                         (=/= a y)
+                         (== z 9)
+                         (== a z))
+                        ((== x 23)
+                         (== c 32)
+                         (=/= z y)
+                         (=/= y 45)))))
+
+(run 5 (x y z) (fresh (a b c)
+                      (conde
+                        ((== x a)
+                         (== b z)
+                         (=/= a y)
+                         (== z 9)
+                         (== a z))
+                        ((== x 23)
+                         (== c 32)
+                         (=/= z y)
+                         (=/= y 45)
+                         (== y 67)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;    Parents.......   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -512,7 +546,7 @@
 
 ;; Neither solution has anything to say about a fish, since the fish does not
 ;; appear anywhere in the clues. However both solutions contain some placeholder
-;; symbols, _.0 and _.1, indicating that we don’t know what pet the German has
+;; symbols, 0 and 1, indicating that we don’t know what pet the German has
 ;; or what beverage the Norvegian drinks.
 ;; We can how ask the question “who owns the fish?” using the relation below.
 ;; Note that this relation takes two arguments both the street and a nationality,
