@@ -38,7 +38,7 @@ like a trick of magic too beautiful to not include it. :magic_wand:
 ```
 
 ### Usage[^0]
-Many examples can be found in the *playground* file.
+Many examples can be found in the [playground](src/playground.lisp) file.
 
 
 ### Credits
