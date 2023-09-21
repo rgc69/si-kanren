@@ -546,7 +546,7 @@
 
 ;; Neither solution has anything to say about a fish, since the fish does not
 ;; appear anywhere in the clues. However both solutions contain some placeholder
-;; symbols, 0 and 1, indicating that we don’t know what pet the German has
+;; symbols, 0 and 1, indicating that we don't know what pet the German has
 ;; or what beverage the Norvegian drinks.
 ;; We can how ask the question “who owns the fish?” using the relation below.
 ;; Note that this relation takes two arguments both the street and a nationality,
