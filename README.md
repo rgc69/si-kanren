@@ -21,7 +21,8 @@ For more information:
 
 
 ### Features
-
+*sī-Kanren* includes:
+1. core miniKanren (`fresh`,  `conde`,  `==`).
 2. `=/=` constraint,  and thus it's  the first microKanren  written in Common  Lisp with this  feature (at
 least, as far as I know).
 3.  *Reification* of **all** the logic queries variables `x x0...` in `(run _ (x x0...)...)`.  It looks
