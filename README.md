@@ -32,7 +32,9 @@ like a trick of magic too beautiful to not include it. :magic_wand:
 
 ### Installation
 *sī-Kanren* is a library in [Quicklisp](https://www.quicklisp.org/beta/). To **load** it, use:
-> (ql:quickload "si-kanren")
+#+BEGIN_SRC lisp
+(ql:quickload "si-kanren")
+#+END_SRC
 
 ### Usage[^0]
 Many examples can be found in the *playground* file.
