@@ -21,14 +21,18 @@ For more information:
 
 
 ### Features
-*sī-Kanren* includes:
-1. core miniKanren (`fresh`,  `conde`,  `==`).
+
 2. `=/=` constraint,  and thus it's  the first microKanren  written in Common  Lisp with this  feature (at
 least, as far as I know).
 3.  *Reification* of **all** the logic queries variables `x x0...` in `(run _ (x x0...)...)`.  It looks
 like a trick of magic too beautiful to not include it. :magic_wand:
 4. *Interactive* request of a solution/s, with `runi`.
 5. Pretty *formatting* of the answer/s.
+
+
+### Installation
+*sī-Kanren* is a library in [Quicklisp](https://www.quicklisp.org/beta/). To **load** it, use:
+> (ql:quickload "si-kanren")
 
 ### Usage[^0]
 Many examples can be found in the *playground* file.
