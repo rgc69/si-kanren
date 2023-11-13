@@ -67,22 +67,33 @@
 (defun reify-name (n)
   (make-symbol (concatenate 'string "_." (write-to-string n))))
 
-;The  `reify-state/1st-var`   function:
-;1. first calls the `walk*` function with `v` and `s` to obtain the
-;value of `v` in the current state `s`.
-;2.  If  `v` is  a logic  variable,  the function  generates a  new name  for the
-;reification by calling `reify-name` with the length  of `s` and adds a new entry
-;to `s` with the form `(v . n)`, where `n` is the generated name.
-;3. If `v` is a pair, the function recursively calls `reify-s` with `(cdr v)` and
-;the result of  calling  `reify-s`  with  `(car  v)`  and `s`.  This combines the
-;reified state of both elements of the pair.
-;4. If `v` is neither a logic variable nor a pair, it returns `s` unchanged.
-;The  `reify-name`   function  generates   a  new   symbol  for   reification  by
-;concatenating "_." with the length of `s` converted to a string.
-;Overall,  the `reify-state/1st-var`  function  reifies  the  state  of the first
-;variable in `s/c/d` by  generating a new name for the variable  if it is a logic
-;variable,  combining the  reified states of its  elements if  it is  a pair,  or
-;leaving it unchanged otherwise.
+
+;The `reify-state/1st-var` function is responsible for reifying the state of the
+;first  variable  in the  given  state-constraint  pair  (`s/c/d`).  It replaces
+;logical variables with their corresponding values  in the state and keeps track
+;of new  names  for  variables.  Here's  how  the `reify-state/1st-var` function
+;works:
+;1. It takes the `s/c/d` state-constraint pair as input.
+;2.  It  defines a  local function  `o` that  takes  a  constraint  `ti`  as its
+;argument.
+;3.  Inside the  `o` function,  it uses  `walk*` to get  the value of  the first
+;variable in the current state (`s`).
+;4.  If the value (`v`) is a logical  variable,  it checks if there is already a
+;value assigned to it in `s`.  If so,  it returns `s` unchanged.  Otherwise,  it
+;generates a new  name  for  the  logical  variable  by calling the `reify-name`
+;function and adds a binding of the  form `(lvar . name)` to `s`.  The new state
+;`s'` is returned.
+;5. If the value `v` is a pair, it recursively applies `reify-s` to both its car
+;and cdr values. Then it applies the same transformation to the resulting states
+;`s1` and `s2`. The new state `s'` is returned.
+;6.  If the value  `v` is neither a  logical variable nor a  pair,  it is simply
+;returned as it is.
+;7. Finally, the `o` function is called with the first constraint in `s/c/d` and
+;the resulting state is returned.
+;Overall,  the  `reify-state/1st-var` function  reifies the  state of  the first
+;variable  in `s/c/d`  by generating  a new  name for  the variable  if it  is a
+;logical variable, combining the reified states of its elements if it is a pair,
+;or leaving it unchanged otherwise.
 (defun reify-state/1st-var (s/c/d)
   (labels (( o (ti)
             (let ((v (walk* ti (caar s/c/d))))
@@ -97,12 +108,24 @@
                                 (cdr s/c/d))))
             '())))))
 
-;The mK-reify function takes the state `s/c/d` as its argument. It checks if the
-;state is empty  and if so,  returns `nil`.  Otherwise,  it checks  if there are
-;multiple solutions in the state and normalizes the state accordingly.  Then, it
-;calls the `reify-state/1st-var` function on each state to convert the variables
-;to a  printable format.  Finally,  it uses  the `format` function  to print the
-;variables in a readable format.
+;The `mK-reify`  function is used  to reify the  state of  the variables  in the
+;state-constraint pairs. Here is how the `mK-reify` function works:
+;1. It takes a state-constraint pair `s/c/d` as input.
+;2.  If the `s/c/d` pair is empty (i.e., there are no variables or constraints),
+;it returns nil.
+;3. If there are multiple solutions in the state (i.e., there are multiple pairs
+;in  `d`),  it normalizes  the state  by removing  any subsumed  constraints and
+;removing duplicates in a set theory sense.
+;4. It calls the `reify-state/1st-var` function on each state-constraint pair to
+;convert the variables to a printable format.
+;5. It uses the `format` function to print the variables in a readable format.
+;6. If there are multiple solutions, it uses the `format` function to print each
+;solution on a new line.
+;7.  Finally,  the `mK-reify` function returns the printed result of the reified
+;state.
+;In summary,  the `mK-reify` function takes a state-constraint pair, reifies the
+;state of the  variables,  and returns the result in  a printable format.  It is
+;used to display the values of the variables in the state after running a goal.
 (defun mK-reify (s/c/d)
     (if (equal nil s/c/d)
         nil
@@ -187,6 +210,35 @@
   `(symbol-macrolet ((else +succeed+))
     (disj+ ,@(loop for c in clauses collect `(conj+ ,@c)))))
 
+;The `fresh` function in  the  si-Kanren  library  is  a  macro  that is used to
+;introduce logical variables  and  define  goals  within  a  local scope.  It is
+;similar to the `let` function, but with the addition of logical variables.
+;The syntax of the `fresh` macro is as follows:
+;```
+;(fresh (v1 v2 ...)
+  ;goal1
+  ;goal2
+  ;...)
+;```
+;- `(v1  v2 ...)`  represents a list  of logical  variables that  are introduced
+;within the scope of the `fresh` macro.
+;- `goal1` and `goal2` represent the goals that are executed within the scope of
+;the `fresh` macro.
+;The `fresh` macro can be used to define goals by combining multiple constraints
+;and logic variables.  It  provides a way to express  constraints and relational
+;logic  in  a declarative  manner.  For  example,  consider  the  following code
+;snippet:
+;```
+;(fresh (x)
+  ;(== x 3))
+;```
+;This code introduces a logical variable  `x` and assigns it the value `3`.  The
+;goal `(== x 3)`  constrains `x` to be equal to `3`.  When  the `fresh` macro is
+;called, it returns a function that represents the goal.  The goal can be called
+;with a state-constraint pair to solve the constraint and retrieve the values of
+;the logical  variables.  In summary,  the  `fresh` macro  is used  to introduce
+;logical variables and define goals within  a local scope.  It provides a way to
+;express constraints and relational logic in a declarative manner.
 (defmacro fresh (&rest e)
   (cond
       ((null? (car e)) `(conj+ ,@(cdr e)))
