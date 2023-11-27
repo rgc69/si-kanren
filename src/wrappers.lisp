@@ -1,9 +1,13 @@
 (in-package :si-kanren)
 
-(defparameter empty-state '((() . 0) () () ()))
+(defun make-st (S/C D TY)
+  `(,S/C ,D ,TY))
+(defun  empty-state () (make-st   '(() . 0) '() '()))
 
-;The `pull` function is used to repeatedly apply the state until it is no longer
-;a function.  This is done by calling  the state function and passing its result
+;(defparameter empty-state '((() . 0) () () ()))
+
+;The `pull`  function is  used to  repeatedly apply  the stream  until it  is no
+;longer a function.  This is done by calling the function and passing its result
 ;back to `pull` recursively until it  is no longer a function.  The final result
 ;is returned.
 (defun pull (st)
@@ -34,7 +38,7 @@
            (cons (car next) (take-all (cdr next))))))
 
 (defun call/empty-state (g)
-  (funcall g empty-state))
+  (funcall g (empty-state)))
 
 ;Here's how the `reify-s` function works:
 ;1. If the value `v` is a logical variable, it checks if there is already a value

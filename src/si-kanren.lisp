@@ -190,7 +190,7 @@
 
 ;;"si-kanren" stops
 
-;;;;;;;;;;;;;;;;;;;;;;;   Disequality ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;   Disequality   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun filter (f l) (if (equal l '())
                         '()
@@ -289,7 +289,75 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;   Type constraint     ;;;;;;;;;;;;;;;;;
 
-;(defun make-type-constraint (tag pred)
-  ;(lambda (u)
-    ;(lambda (st) (let ((S (caar st))(C (cdar st)) (D (cadr st)) (T (T-of st)))
-                   ;))))
+(defun S/C-of (s/c/d)
+  (car s/c/d))
+
+(defun S-of (s/c/d)
+  (caar s/c/d))
+
+(defun C-of (s/c/d)
+  (cdar s/c/d))
+
+(defun D-of (s/c/d)
+  (cadr s/c/d))
+
+(defun TY-of (s/c/d)
+  (caddr s/c/d))
+
+(defun tag=? (t0 t1)
+  (eq t0 t1))
+
+(defun tag-of (ty)
+  (cadr ty))
+
+(defun make-type-constraint (tag pred)
+  (lambda (u)
+    (lambda (st)
+      (let ((S (S-of st)))
+            ;(S/C (S/C-of st))
+            ;(D (D-of st))
+            ;(TY (TY-of st)))
+            ;(A (A-of st)))
+        (let ((u (walk u S)))
+          (cond ((lvar? u)
+                 (let ((t/x (make-type-constraint/x u tag pred st)));A)))
+                    (if t/x (unit t/x)
+                            mzero)))
+                ((pair? u) mzero)
+                (t
+                  (cond
+                    ((funcall pred u) (unit st))
+                    (t mzero)))))))))
+
+(defun ext-TY (x tag pred TY)
+  (cond
+   ; Ran out of type constraints without any conflicts, add new type constraint
+   ; to the store (because the type constraint store is empty).
+   ((null? TY) `((,x . (,tag . ,pred))))
+   (t (let ((ty (car TY))
+            (TY-next (cdr TY)))
+        (let ((t-tag (tag-of ty)))
+          (cond
+            ; Is the current constraint on x?
+            ((equalp (car ty)  x)
+             (cond
+               ; Is it same as the new constraint? Then do not extend the store
+               ((tag=? t-tag tag) '())
+               ; Is it conflicting with the new constraint? Then fail.
+               (t "err")))
+             ; The current constraint is not on x, continue going through
+             ; rest of the constraints
+           (t (ext-TY x tag pred TY-next))))))))
+
+(defun make-type-constraint/x (u tag pred st)
+     (let ((ty (ext-TY u tag pred (TY-OF st))))
+          (funcall (lambda (T+)
+                     (cond ((null? T+) st)
+                           ((equal T+ "err") '())
+                           (t (let ((TY-next (append T+ (TY-OF st))))
+                                (make-st (S/C-OF st) (D-OF st) TY-next))))) ty)))
+
+
+(defun symbolo (u) (funcall (make-type-constraint 'sym #'symbolp) u))
+
+(defun numbero (u) (funcall (make-type-constraint 'num #'numberp) u))
