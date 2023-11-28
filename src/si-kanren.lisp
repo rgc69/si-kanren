@@ -315,6 +315,26 @@
 (defun pred-of (ty)
    (cddr ty))
 
+;The `make-type-constraint` function  is used to create a  type constraint for a
+;logical variable. It takes four arguments: `tag`, `pred`, `u`, and `st`.
+;The `tag` argument represents the tag of the type constraint, which can be used
+;to identify  the type  of the constraint.  The  `pred` argument  represents the
+;predicate function used to check if a value satisfies the constraint.
+;The `u` argument represents the logical  variable for which the type constraint
+;is  being  created.  It  is  passed  to  the  `walk`  function  along  with the
+;substitution `S` from the state `st` to resolve the value of `u` in the current
+;substitution.
+;The `st` argument represents the current  state in the si-Kanren system.  It is
+;used to access the substitution store `S` and the type constraint store `TY`.
+;Inside the  `make-type-constraint` function,  `u` is resolved  using the `walk`
+;function,  and the resulting value is  checked against the constraint predicate
+;using the `pred`  function.  If  the  value  satisfies  the constraint,  a unit
+;containing the unchanged state `st` is returned.  If the value does not satisfy
+;the constraint,  `mzero`  is returned,  indicating that the  conjunction is not
+;satisfiable.
+;Overall, the `make-type-constraint` function is used to define type constraints
+;for logical variables and check if those constraints are satisfied in the given
+;state.
 (defun make-type-constraint (tag pred)
   (lambda (u)
     (lambda (st)
@@ -334,6 +354,25 @@
                     ((funcall pred u) (unit st))
                     (t mzero)))))))))
 
+;The `ext-TY` function is  used to extend the type constraint  store `TY` with a
+;new type constraint.  It takes four arguments: `x`, which is the variable to be
+;constrained;  `tag`,  which is the tag of the constraint;  `pred`, which is the
+;predicate of the  constraint;  and `TY`,  which is the  current type constraint
+;store.
+;The function first checks if the type constraint store `TY` is empty. If it is,
+;it simply returns a new store with the new constraint.
+;If `TY` is not empty,  the function checks  each type constraint in `TY` to see
+;if it matches the variable `x`.  If it does,  the function checks if the tag of
+;the constraint is the same as the new constraint's tag.  If it is, the function
+;returns an empty store,  as there is no need to add a duplicate constraint.  If
+;the tags  are different,  it  means there  is a  conflict between  the existing
+;constraint and the new constraint, so the function returns an error.
+;If the current constraint in `TY` does not match `x`,  the function recursively
+;calls `ext-TY`  with the rest of  `TY`.  This allows  the function  to continue
+;checking the remaining constraints in the store.
+;In summary, `ext-TY` extends the type constraint store with a new constraint if
+;there are no  conflicts or duplicates.  If there is  a conflict,  it returns an
+;error.
 (defun ext-TY (x tag pred TY)
   (cond
    ; Ran out of type constraints without any conflicts, add new type constraint
@@ -354,7 +393,23 @@
              ; rest of the constraints
            (t (ext-TY x tag pred TY-next))))))))
 
-;The following two have to move in wrappers.lisp when ready
+;The following two have to move in wrappers.lisp when ready;;;;;;;;;;;;;;;;;;;;
+;The `subsumed-d-pr?` function checks if a disequality constraint is subsumed by
+;any existing constraints in the type constraint store (`TY`). It takes the type
+;constraint store  (`TY`) as  an argument and  returns a  function that  takes a
+;disequality constraint (`d-pr`) as an argument.
+;In  the function,  it  first retrieves  the second  element of  the disequality
+;constraint,  which represents the value `u`  in the disequality `(!= u v)`.  It
+;then checks if `u` is a logical variable. If it is, it returns `()`, indicating
+;that the  constraint is not subsumed.  If  `u` is  not a  logical variable,  it
+;searches for  a matching constraint in  the type constraint  store (`TY`) using
+;the value `u` as the key.  If a matching constraint is found,  it checks if the
+;predicate of the constraint (defined by the `pred-of` function) is satisfied by
+;the value `u`. If it is, it returns `()`, indicating that the constraint is not
+;subsumed.  If the predicate is not satisfied,  it returns `t`,  indicating that
+;the constraint is subsumed.
+;`subsumed-d-pr?  and rem-subsumed-D<T are  used in the `make-type-constraint/x`
+;function to handle type constraints and disequalities in the si-Kanren system.
 (defun subsumed-d-pr? (TY)
   (lambda (d-pr)
     (let ((u (cdr d-pr)))
@@ -365,15 +420,35 @@
                      (t (let ((sc (assoc  (car d-pr) TY :test #'equalp)))
                           (and sc
                             (cond
-                              ;se è lo stesso predicato, nil
                               ((funcall (pred-of sc) u) ())
-                              ;se è un altro, t, perchè è subsumed, si può
-                              ;togliere
                               (t t)))))))))
 
+;The `rem-subsumed-D<T`  function removes subsumed  disequality constraints from
+;the disequality store (`D`).  It takes the type constraint store (`TY`) and the
+;disequality store (`D`)  as  arguments.  It  uses  the  `delete-if` function to
+;remove  disequality constraints  from the  store  (`D`)  that  are  subsumed by
+;constraints in the type constraint  store (`TY`).  It uses the `subsumed-d-pr?`
+;function to determine if a constraint is subsumed.
 (defun rem-subsumed-D<T (TY D)
   (delete-if (subsumed-d-pr? TY) D))
 
+
+;The `make-type-constraint/x` function takes four arguments: `u`, `tag`, `pred`,
+;and `st`.
+;It  first extends  the type  constraint  store  `TY`  with  the  new constraint
+;represented by `u`, `tag`, and `pred` using the `ext-TY` function.
+;Then,  it calls a lambda function that takes `T+` as its argument.  Inside this
+;lambda function, it checks three conditions:
+;1. If `T+` is an empty list, it returns the original state `st` since there are
+;no new constraints to add.
+;2.  If `T+` is equal to the string "err",  it returns an empty list, indicating
+;that the new constraint is conflicting with existing constraints.
+;3.  Otherwise,  it creates a new state  with the extended type constraint store
+;`TY-next` that  includes the new  constraint and the  existing constraints.  It
+;also removes any subsumed constraints from  the disequality store `D` using the
+;`rem-subsumed-D<T` function.
+;Finally,  it calls the  lambda function with the extended  type constraint `ty`
+;and returns the result.
 (defun make-type-constraint/x (u tag pred st)
      (let ((ty (ext-TY u tag pred (TY-OF st))))
           (funcall (lambda (T+)
@@ -383,15 +458,26 @@
                                     (D (rem-subsumed-d<t T+ (D-of st))))
                                 (make-st (S/C-of st) D TY-next))))) ty)))
 
-;(defun make-type-constraint/x (u tag pred st)
-     ;(let ((ty (ext-TY u tag pred (TY-OF st))))
-          ;(funcall (lambda (T+)
-                     ;(cond ((null? T+) st)
-                           ;((equal T+ "err") '())
-                           ;(t (let ((TY-next (append T+ (TY-OF st))))
-                                ;(make-st (S/C-OF st) (D-OF st) TY-next))))) ty)))
 
-
+;The `symbolo` function  is  used  to  create  a  type  constraint for a logical
+;variable `u` that indicates that `u` must be a symbol.  It is implemented using
+;the  `make-type-constraint`  function,  which  takes  three  arguments:  `tag`,
+;`pred`,  and `st`.  In this case,  the `tag` is set to `'sym` and the `pred` is
+;set to the  function  `symbolp`,  which  checks  if  a  value is a symbol.  The
+;`make-type-constraint` function is then called with `u`, `'sym`, `symbolp`, and
+;the current  state `st` as arguments.  This  creates a type  constraint for `u`
+;that is added to the type constraint store in the state `st`.
 (defun symbolo (u) (funcall (make-type-constraint 'sym #'symbolp) u))
 
+;The `numbero`  function is a  type constraint function  that checks if  a given
+;term `u` is a number.  It uses  the `make-type-constraint` function to create a
+;type constraint that specifies the `num` tag and the `numberp` predicate.  This
+;type constraint is then applied to the term `u` in the `funcall` expression.
+;If the  term `u` satisfies the  type constraint  (i.e.,  it is  a number),  the
+;`make-type-constraint`  function   returns  a   unit  containing   the  current
+;substitution  `st`.   If  `u`  does  not  satisfy  the  type  constraint,   the
+;`make-type-constraint`   function   returns   `mzero`,   indicating   that  the
+;conjunction is not satisfiable.
+;Overall, the `numbero` function is used to add a type constraint that checks if
+;a term is a number in the si-Kanren system.
 (defun numbero (u) (funcall (make-type-constraint 'num #'numberp) u))
