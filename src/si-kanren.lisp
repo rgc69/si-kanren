@@ -130,9 +130,11 @@
 ;section the arguments $1 and $2 are swapped.  This is to prevent a (potentially
 ;infinite) DFS (depth  first search;  I think this is  Prolog style):  if we had
 ;only (mplus $1  ($2)) and $1 is infinite,  we'll never  reach $2!  In our case,
-;instead,  we have  an interleaving complete  search (aka breadth  first search:
-;BFS),  in which mplus alternate the search between $1 and $2: one little change
-;(swapping two values) provides a *dramatic* difference!
+;instead,  we have  an  unguided,  interleaving  complete  search  (that is both
+;complete  and more  useful in  practice  than  are  breadth-first  or iterative
+;deepening depth-first search),  in which mplus  alternate the search between $1
+;and  $2:  one  little  change  (swapping  two  values)  provides  a  *dramatic*
+;difference!
 (defun mplus ($1 $2)   ;like appendo
   (cond
     ((null? $1) $2)
@@ -310,6 +312,9 @@
 (defun tag-of (ty)
   (cadr ty))
 
+(defun pred-of (ty)
+   (cddr ty))
+
 (defun make-type-constraint (tag pred)
   (lambda (u)
     (lambda (st)
@@ -349,13 +354,42 @@
              ; rest of the constraints
            (t (ext-TY x tag pred TY-next))))))))
 
+;The following two have to move in wrappers.lisp when ready
+(defun subsumed-d-pr? (TY)
+  (lambda (d-pr)
+    (let ((u (cdr d-pr)))
+      (cond
+         ; We want the disequality to be between a variable and a constant,
+         ;can ignore constraints between two variables.
+                     ((lvar? u) '())
+                     (t (let ((sc (assoc  (car d-pr) TY :test #'equalp)))
+                          (and sc
+                            (cond
+                              ;se è lo stesso predicato, nil
+                              ((funcall (pred-of sc) u) ())
+                              ;se è un altro, t, perchè è subsumed, si può
+                              ;togliere
+                              (t t)))))))))
+
+(defun rem-subsumed-D<T (TY D)
+  (delete-if (subsumed-d-pr? TY) D))
+
 (defun make-type-constraint/x (u tag pred st)
      (let ((ty (ext-TY u tag pred (TY-OF st))))
           (funcall (lambda (T+)
                      (cond ((null? T+) st)
                            ((equal T+ "err") '())
-                           (t (let ((TY-next (append T+ (TY-OF st))))
-                                (make-st (S/C-OF st) (D-OF st) TY-next))))) ty)))
+                           (t (let ((TY-next (append T+ (TY-of st)))
+                                    (D (rem-subsumed-d<t T+ (D-of st))))
+                                (make-st (S/C-of st) D TY-next))))) ty)))
+
+;(defun make-type-constraint/x (u tag pred st)
+     ;(let ((ty (ext-TY u tag pred (TY-OF st))))
+          ;(funcall (lambda (T+)
+                     ;(cond ((null? T+) st)
+                           ;((equal T+ "err") '())
+                           ;(t (let ((TY-next (append T+ (TY-OF st))))
+                                ;(make-st (S/C-OF st) (D-OF st) TY-next))))) ty)))
 
 
 (defun symbolo (u) (funcall (make-type-constraint 'sym #'symbolp) u))
