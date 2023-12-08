@@ -1,8 +1,26 @@
 (in-package :si-kanren)
 
-(defun make-st (S/C D TY)
-  `(,S/C ,D ,TY))
-(defun  empty-state () (make-st   '(() . 0) '() '()))
+(defun make-st (S/C D TY A)
+  `(,S/C ,D ,TY ,A))
+(defun  empty-state () (make-st   '(() . 0) '() '() '()))
+
+(defun S/C-of (s/c/d)
+  (car s/c/d))
+
+(defun S-of (s/c/d)
+  (caar s/c/d))
+
+(defun C-of (s/c/d)
+  (cdar s/c/d))
+
+(defun D-of (s/c/d)
+  (cadr s/c/d))
+
+(defun TY-of (s/c/d)
+  (caddr s/c/d))
+
+(defun a-of (s/c/d)
+  (cadddr s/c/d))
 
 ;(defparameter empty-state '((() . 0) () () ()))
 

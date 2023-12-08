@@ -107,18 +107,38 @@
 ;value `3`. The result is a new goal that includes the constraint `x = 3`.
 (defun call/fresh (f)
   (lambda (s/c/d)
-    (let ((c (cdar s/c/d))
-          (d (cdr s/c/d)))
-        (funcall (funcall f (lvar c)) `((,(caar s/c/d) . ,(+ c 1)) . ,d)))))
+    (let ((c (c-of s/c/d))
+          (d (d-of s/c/d))
+          (ty (ty-of s/c/d))
+          (a (a-of s/c/d)))
+        (funcall (funcall f (lvar c)) `((,(caar s/c/d) . ,(+ c 1)) ,d ,ty ,a)))))
 
 (defun == (u v)
   (lambda (s/c/d)
-    (let ((s (unify u v (caar s/c/d))))
-      (if (not (equal s '(())))
-          (normalize-disequality-store
-           (cons (cons s (cdar s/c/d))(cdr s/c/d)))
-          mzero))))
+    (let ((s^ (unify u v (caar s/c/d))))
+      (if (not (equal s^ '(())))
+         (normalize-disequality-store
+          (cons (cons s^ (cdar s/c/d))(cdr s/c/d)))
+         mzero))))
+;(defun == (u v)
+  ;(lambda (s/c/d)
+    ;(let ((s^ (unify u v (s-of s/c/d)))))
+    ;(let ((d^ (disequality u v (s-of s/c/d)))
+          ;(s/c (s/c-of s/c/d))
+          ;(d (d-of s/c/d))
+          ;(ty (ty-of s/c/d))
+          ;(a (a-of s/c/d)))
+      ;(if d^
+        ;(if (equal d^ '(()))
+            ;(unit s/c/d)
+         ;(unit (cons (cons (caar s/c/d) (cdar s/c/d))(cdr s/c/d)))
+            ;(unit (cons (cons (caar s/c/d) (cdar s/c/d)) (cons d^ (cdr s/c/d)))))
+           ;(post-unify-=/= s/c (car d^) d ty a))
+         ;(unit(unit (make-st (s-of s/c/d) (c-of s/c/d) (cons d^ (d-of s/c/d))))))
+         ;(unit (cons (cons (s-of s/c/d) (c-of s/c/d)) (cons d^ (d-of s/c/d)))))
+       ;mzero)))
 
+;(defun == (u v) (lambda (st) (==-verify (disequality u v (S-of st)) st)))
 ;The  `mplus`  function  is  used  to  concatenate  two  streams.  It  takes two
 ;arguments,  `$1` and `$2`,  and returns a stream that contains all the elements
 ;from both `$1` and `$2`. If `$1` is empty, it simply returns `$2`, otherwise it
@@ -238,14 +258,12 @@
 ;that the disequality is not satisfied.
 (defun disequality (u v s)
   (let ((s^ (unify u v s)))
-       (if s^
-          (if (equal s^ '(()))
-              '(())
-              (let ((d (subtract-s s^ s)))
-               (if (null? d)
-                '()
-                 d)))
-         '(()))))
+      (if (equal s^ '(()))
+          '(())
+          (let ((d (subtract-s s^ s)))
+           (if (null? d)
+            '()
+             d)))))
 
 ;The `(=/=)` function in  `si-kanren` is used to specify that  two terms are not
 ;equal.  It takes two terms `u` and `v` as arguments and returns a function that
@@ -257,12 +275,32 @@
 ;satisfiable.
 (defun =/= (u v)
   (lambda (s/c/d)
-    (let ((d^ (disequality u v (caar s/c/d))))
+    (let ((d^ (disequality u v (s-of s/c/d)))
+          (s/c (s/c-of s/c/d))
+          (d (d-of s/c/d))
+          (ty (ty-of s/c/d))
+          (a (a-of s/c/d)))
       (if d^
         (if (equal d^ '(()))
-         (unit (cons (cons (caar s/c/d) (cdar s/c/d))(cdr s/c/d)))
-         (unit (cons (cons (caar s/c/d) (cdar s/c/d)) (cons d^ (cdr s/c/d)))))
+            (unit s/c/d)
+         ;(unit (cons (cons (caar s/c/d) (cdar s/c/d))(cdr s/c/d)))
+            ;(unit (cons (cons (caar s/c/d) (cdar s/c/d)) (cons d^ (cdr s/c/d)))))
+           (post-unify-=/= s/c (car d^) d ty a))
+         ;(unit(unit (make-st (s-of s/c/d) (c-of s/c/d) (cons d^ (d-of s/c/d))))))
+         ;(unit (cons (cons (s-of s/c/d) (c-of s/c/d)) (cons d^ (d-of s/c/d)))))
        mzero))))
+
+(defun post-unify-=/= (S/C D DS TY A)
+        (unit (make-st S/C (cons D DS) TY A)))
+;(defun post-unify-=/= (S C DS)
+  ;(lambda (S+)
+    ;(cond ((equal S+ S/C) mzero)
+          ;(t (let ((d (subtract-s  S+ S/C)))
+              ;(unit (make-st S/C (cons d DS) '())))))))
+
+(defun prefix-S (S+ S)
+  (cond ((equal S+ S) '())
+        (t (cons (car S+) (prefix-S (cdr S+) S)))))
 
 ;The `normalize-disequality-store` function  takes a store `s/c/d`  as input and
 ;applies the `disequality` function to each  pair of variables in the store.  It
@@ -278,33 +316,45 @@
   (bind (mapm (lambda (es)
                 (let ((d^ (disequality (mapcar #'car es)
                                        (mapcar #'cdr es)
-                                       (caar s/c/d))))
+                                       (s-of s/c/d))))
                    (if d^
                        (if (equal d^ '(()))
                            '(())
-                           (unit d^))
+                           d^)
                        mzero)))
               (filter (lambda (l) (not (null? l)))
                       (cdr s/c/d)))
         (lambda (d)
-          (unit (cons (cons (caar s/c/d) (cdar s/c/d)) d)))))
+          (unit (cons (cons (s-of s/c/d) (c-of s/c/d)) d)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;  ALTERNATIVE NORMALIZATION   ;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun unify* (d S)
+       (cond ((null? d) S)
+             ((let ((u* (disequality (caar d) (cdar d) S)))
+               (when u*
+                   (funcall (lambda (S) (unify* (cdr d) S)) S))))
+             (t nil)))
+
+(defun reform-D (D D^ S)
+  (cond ((null? D) D^)
+        ((let ((s* (unify* (car D) S)))
+          (when s*
+            (funcall (lambda (S^)
+                      (cond ((equalp S S^) nil)
+                            (t (let ((d (prefix-S S^ S)))
+                                 (reform-D (cdr D) (cons d D^) S))))) s*))))
+        (t (reform-D (cdr D) D^ S))))
+
+(defun ==-verify (S+ st)
+  (cond ((not S+) mzero)
+        ((equalp (S-of st) S+) (unit st))
+        ((let ((r* (reform-D (d-of st) '(()) S+)))
+          (when r*
+            (funcall (lambda (D) (unit (make-st (cons S+ (C-of st)) D (ty-of st)(a-of st)))) r*))))
+        (t mzero)))
 
 ;;;;;;;;;;;;;;;;;;;;;;   Type constraint     ;;;;;;;;;;;;;;;;;
-
-(defun S/C-of (s/c/d)
-  (car s/c/d))
-
-(defun S-of (s/c/d)
-  (caar s/c/d))
-
-(defun C-of (s/c/d)
-  (cdar s/c/d))
-
-(defun D-of (s/c/d)
-  (cadr s/c/d))
-
-(defun TY-of (s/c/d)
-  (caddr s/c/d))
 
 (defun tag=? (t0 t1)
   (eq t0 t1))
@@ -456,7 +506,7 @@
                            ((equal T+ "err") '())
                            (t (let ((TY-next (append T+ (TY-of st)))
                                     (D (rem-subsumed-d<t T+ (D-of st))))
-                                (make-st (S/C-of st) D TY-next))))) ty)))
+                                (make-st (S/C-of st) D TY-next (a-of st)))))) ty)))
 
 
 ;The `symbolo` function  is  used  to  create  a  type  constraint for a logical
