@@ -318,25 +318,6 @@
               ;(unit (cons (cons (s-of s/c/d) (c-of s/c/d)) (cons d^ (d-of s/c/d)))))
        mzero))))
 
-(defun flatten* (lst depth &aux (re '()))
-  (cond
-    ((null lst) '())
-    ((listp (car lst))
-     (append (cond
-               ((= 0 depth)             ; flatten none
-                (list (car lst)))
-               ((< 0 depth)             ; flatten down
-                (flatten* (car lst) (- depth 1)))
-               ((= -1 depth)            ; flatten all
-                (flatten* (car lst) depth))
-               ((< depth -1)            ; flatten up
-                (list (flatten* (car lst) (+ depth 1)))))
-             (append (flatten* (cdr lst) depth)
-                     re)))
-    (t (cons (car lst)
-             (append (flatten* (cdr lst) depth) re)))))
-
-
 
 ;(unify '(#(3) . 6) '(42 . #(4)) '((#(1) . 11) (#(2) . 5)(#(0) . 10)))
 ;(unify '(#(2) . #(3)) '(#(4) . 6) '((#(3) . 5)))
@@ -352,8 +333,16 @@
 ;(runno 1 (q)(fresh (x y) (== q `(,x ,y))(=/= `(,x . 7) `(5 . ,y))))
 ;(runno 1 (q)(fresh (x y z) (== z 9) (== q `(,x ,y))(=/= `(,x . 7) `(5 . ,y))))
 ;(runno 1 (q)(fresh (x y z)(== q `(,x ,y))(=/= `(,x . 7) `(5 . ,y)) (== z 9)))
-;(runno 1 (q)(fresh (x y z)(== q `(,x ,y))(=/= `(,x . 7) `(,z . ,y)) (== z 9)))
+;(runno 1 (q)(fresh (x y z)(== q `(,x ,y))(== x 9)(=/= `(,x . 7) `(,z . ,y)) (== z 9)(== y 7)))
 ;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== q `(,x ,y))))
+
+;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== x 5)))
+;(runno 1 (q)(fresh (x y) (=/= x 5)(== x 5)))
+;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== x 5)(== y 7)))
+;(unify* '((#(2) . 5))  '((#(0) . #(1)) (#(2) . 5)))
+;(reform-d  '(((#(2) . 5))) '() '((#(0) . #(1)) (#(2) . 5)))
+
+
 ;(funcall * (empty-state))
 ;(funcall * **)
 ;(funcall * (car **))
@@ -361,7 +350,7 @@
 ;(funcall * **)
 ;(== '#(3) 9)
 ;(funcall * '((((#(4) . 4)(#(5) . 9) (#(3) . 7)(#(2) . 3)) . 9) ((#(1) . 11) (#(2) . 5)(#(9) . 10)) () ()))
-;(runno 1 (q) (fresh (x y) (== x 4) (== y 9) (=/= q 5) (=/= q 3)(== q `(,x . ,y))))
+;(runno 1 (q) (fresh (x y) (== x 4) (== y 9) (=/= q 5) (=/= q 3)(== q `(,x  ,y))))
 ;(walk* #(1) (caar *))
 ;(runno 1 (q) (fresh (x y) (== `(,x 4) `(9 ,y)) (=/= q 5) (=/= q 3)(== q `(,y . ,x))))
 ;(runno 1 (q) (fresh (x y) (== x 4) (== y 9)))
@@ -382,20 +371,20 @@
 ;disequalities.  The `normalize-disequality-store` function is  part of the type
 ;constraint section of the code and is used to handle constraints related to the
 ;equality and disequality of variables in the Kanren system.
-(defun normalize-disequality-store (s/c/d)
-  (bind (mapm (lambda (es)
-                (let ((d^ (disequality (mapcar #'car es)
-                                       (mapcar #'cdr es)
-                                       (s-of s/c/d))))
-                   (if d^
-                       (if (equal d^ '(()))
-                           '(())
-                           d^)
-                       mzero)))
-              (filter (lambda (l) (not (null? l)))
-                      (cadr s/c/d)))
-        (lambda (d)
-          (unit (make-st  (s/c-of s/c/d) d (ty-of s/c/d) (a-of s/c/d))))))
+;(defun normalize-disequality-store (s/c/d)
+  ;(bind (mapm (lambda (es)
+                ;(let ((d^ (disequality (mapcar #'car es)
+                                       ;(mapcar #'cdr es)
+                                       ;(s-of s/c/d))))
+                   ;(if d^
+                       ;(if (equal d^ '(()))
+                           ;'(())
+                           ;d^)
+                       ;mzero)))
+              ;(filter (lambda (l) (not (null? l)))
+                      ;(cadr s/c/d)))
+        ;(lambda (d)
+          ;(unit (make-st  (s/c-of s/c/d) d (ty-of s/c/d) (a-of s/c/d))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;  ALTERNATIVE NORMALIZATION   ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -411,11 +400,17 @@
 ;(unify* '((#(3) . 5) (#(3) . 7)) '((#(0) . #(1)) (#(2) . 3)))
 ;(subtract-s * '((#(0) . #(1)) (#(2) . 3)))
 ;(reform-d '((#(3) . 4) (#(4) . 7)) '() '((#(0) . #(1)) (#(2) . 3)))
-;(reform-d '((#(2) . 3) (#(4) . 7)) '() '((#(0) . #(1)) (#(2) . 3)))
-;(reform-d '((#(2) . 5) (#(4) . 7)) '() '((#(0) . #(1)) (#(2) . 3)))
-;(reform-d '(((#(1) . 3))((#(1) . 7)) ((#(1) . 4))) '() '((#(0) . #(1))(#(2) . 3)))
+
+;(reform-d '(((#(2) . 3))) '() '((#(0) . #(1)) (#(2) . 3)))
+;(reform-d '(((#(3) . 8))) '() '((#(0) . #(1)) (#(2) . 5) (#(3) . 7)))
+
+;(runno 1 (q) (fresh (x y) (=/= x 5) (=/= y 9) (== q 3)))
+;(reform-d '(((#(2) . 3)) ((#(4) . 7))) '() '((#(0) . #(1)) (#(2) . 3)))
+;(unify* '((#(2) . 3) (#(4) . 7))  '((#(0) . #(1)) (#(2) . 3)))
+;(unify* '((#(3) . 4) (#(4) . 7))  '((#(0) . #(1)) (#(2) . 3)))
+;(reform-d '(((#(2) . 3))((#(1) . 7)) ((#(1) . 4))) '() '((#(0) . #(1))(#(2) . 3)))
 ;(reform-d '(((#(2) . 4))((#(1) . 7)) ((#(1) . 4))) '() '((#(0) . #(1))(#(2) . 3)))
-;(reform-d '((#(5) . 3) (#(3) . cat)) '() '((#(0) . #(1))(#(5) . 9) (#(4) . cat)))
+;(reform-d '(((#(5) . 3) (#(3) . cat))) '() '((#(0) . #(1))(#(5) . 9) (#(4) . cat)))
 ;(reform-d '(((#(5) . 3) (#(4) . cat))) '() '((#(0) . #(1))(#(5) . 9) (#(4) . cat)))
 ;(flatten* * 1)
 ;(unify* (car '(((#(5) . 3)) ((#(3) . 7)))) '((#(0) . #(1)) (#(2) . 3)))
@@ -443,7 +438,7 @@
 
 ;(runno 1 (q) (fresh (x y)(== q `(,x ,y))(=/= `(,x 3) `(cat ,y))))
 ;(runno 1 (q) (fresh (x y)(== q 9)(=/= `(,x 3) `(cat ,y))))
-;(runno 1 (q) (fresh (x y)(=/= `(,x 3) `(cat ,y))(== y 3) (== q `(,x ,y))))
+;(runno 1 (q) (fresh (x y)(=/= `(,x 3) `(cat ,y))(== y 3) (== q `(,x ,y))(== x 'cat)))
 ;(runno 1 (q) (fresh (x y)(=/= `(,x 3) `(cat ,y))(== y 3)))
 ;(runno 1 (q) (fresh (x y)(== x q)(== 3 y) (== x 'cat)(=/= `(,x 3) `(cat ,y))))
 ;(S-OF *)
@@ -490,36 +485,36 @@
 
 ;(let ((s^ '((#(2) . 10)(#(0) . #(2)) (#(1) . #(0)))))
  ;(bind (mapm (lambda (x) (let ((d^ (disequality (car x) (cdr x) s^)))
-                  ;(if d^
-                      ;(if (equal d^ '(()))
-                         ;'(())
-                         ;d^)
-                      ;mzero)))
-            ;'((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)))
-    ;(lambda (d) (cons s^ (cons (filter (lambda (l) (not (null? l)))d) nil)))))
+               ;(if d^
+                   ;(if (equal d^ '(()))
+                      ;'(())
+                      ;d^)
+                   ;mzero)))
+           ;'((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)))
+   ;(lambda (d) (cons s^ (cons (filter (lambda (l) (not (null? l)))d) nil)))))
 ;(unit *)
 ;(mk-reify (normalize-conde *))
 ;(let ((s^ '((#(2) . 10)(#(0) . #(2))(#(3) . cat)(#(5) . 3) (#(1) . #(0)))))
  ;(bind (mapm (lambda (x) (let ((d^ (disequality (car x) (cdr x) s^)))
-                    ;(if d^
-                        ;(if (equal d^ '(()))
-                           ;'(())
-                           ;d^)
-                        ;mzero)))
-            ;'((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)((#(5) . 3) (#(3) . cat))))
-    ;(lambda (d) (cons s^ (cons (filter (lambda (l) (not (null? l)))d) nil)))))
+                 ;(if d^
+                     ;(if (equal d^ '(()))
+                        ;'(())
+                        ;d^)
+                     ;mzero)))
+           ;'((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)((#(5) . 3) (#(3) . cat))))
+   ;(lambda (d) (cons s^ (cons (filter (lambda (l) (not (null? l)))d) nil)))))
 ;(normalize-disequality-store '((((#(2) . 10)(#(0) . #(2))(#(3) . cat)(#(5) . 3) (#(1) . #(0)))  . 8)
-                       ;(((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)((#(5) . 3) (#(3) . cat))))
-                       ;() ()))
+                    ;(((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)((#(5) . 3) (#(3) . cat))))
+                    ;() ()))
 
 ;(normalize-disequality-store '((((#(2) . 10)(#(0) . #(2))(#(3) . cat)(#(5) . 3) (#(1) . #(0)))  . 8)
-                       ;(((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)))
-                       ;() ()))
+                    ;(((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)))
+                    ;() ()))
 (defun unify* (d S)
   (cond ((null? d) S)
         ((let ((s^ (unify (caar d) (cdar d) S)))
            (when (not (equal s^ '(())))
-              (funcall (lambda (S) (unify* (cdr d) S)) s^))))
+            (funcall (lambda (S) (unify* (cdr d) S)) s^))))
         (t nil)))
 
 ;(defun unify* (d S)
@@ -531,14 +526,26 @@
 (defun reform-D (D D^ S)
   (cond ((null? D) D^)
         ((let ((d* (unify* (car D) S)))
-           (if (or (equal d* '(())) (equal d* nil))
+           (if (equal d* nil)
                nil
                (funcall (lambda (S^)
                           (if (equalp S S^)
-                              nil
+                              'err
                               (let ((d+ (subtract-s S^ S)))
                                 (reform-D (cdr D) (cons d+ D^) S)))) d*))))
         (t (reform-D (cdr D) D^ S))))
+
+;(defun reform-D (D D^ S)
+  ;(cond ((null? D) D^)
+        ;((let ((d* (unify* (car D) S)))
+           ;(if (or (equal d* '(())) (equal d* nil))
+               ;nil
+               ;(funcall (lambda (S^)
+                          ;(if (equalp S S^)
+                              ;nil
+                              ;(let ((d+ (subtract-s S^ S)))
+                                ;(reform-D (cdr D) (cons d+ D^) S)))) d*))))
+        ;(t (reform-D (cdr D) D^ S))))
 
 ;(defun reform-D (D D^ S)
   ;(cond ((null? D) D^)
@@ -549,16 +556,29 @@
                     ;(unit(reform-d (cdr D) (cons d* D^) S)))
                 ;nil)))))
 
+;(defun ==-verify (S+ st)
+  ;(cond ((equal S+ '(())) mzero)
+        ;((equalp (S-of st) S+) (unit st))
+        ;((let ((rd (reform-D (d-of st) '() S+)))
+            ;(unit (make-st
+                        ;(cons S+ (C-of st))
+                        ;rd
+                        ;(ty-of st)
+                        ;(a-of st)))))
+       ;(t mzero)))
+
 (defun ==-verify (S+ st)
   (cond ((equal S+ '(())) mzero)
         ((equalp (S-of st) S+) (unit st))
         ((if (not (null? (d-of st)))
              (let ((rd (reform-D (d-of st) '() S+)))
-                 (unit (make-st
-                             (cons S+ (C-of st))
-                             rd
-                             (ty-of st)
-                             (a-of st))))
+                  (if (equal rd 'err)
+                      nil
+                      (unit (make-st
+                                  (cons S+ (C-of st))
+                                  rd
+                                  (ty-of st)
+                                  (a-of st)))))
             (unit(make-st (cons S+ (c-of st)) (d-of st) (ty-of st) (a-of st)))))))
 ;(defun == (u v) (lambda (st) (==-verify (unify u v (S-of st)) st)))
 ;;;;;;;;;;;;;;;;;;;;;;   Type constraint     ;;;;;;;;;;;;;;;;;
