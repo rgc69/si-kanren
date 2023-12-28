@@ -93,7 +93,7 @@
            (unify (cdr u) (cdr v) s1)
            '(()))))
       ((and (equalv? u v) (not (equal s '(())))  s))
-      (t '(())))))
+      (T '(())))))
 
 ;The `call/fresh`  function in si-Kanren is  used to  introduce a  fresh logical
 ;variable into a  goal.  It takes a function `f` as  an argument,  which is then
@@ -143,7 +143,9 @@
 ;(== (lvar 3) 9)
 ;(funcall * (empty-state))
 ;(unify (lvar 3) 9 '())
+;(run 1 (q)(=/= q 3)(=/= q 4)(=/= q 7)(=/= q 9))
 ;(run 1 (q)(=/= q 3)(=/= q 4)(=/= q 7)(== q 9))
+;(runno 1 (q) (fresh (x y) (== x 9) (== y x)(== q `(,x ,y))))
 ;(=/= '#(0) 3)
 ;(call/empty-state (conj+ (=/= (lvar 1) 9)(== (lvar 3) 11) (== (lvar 1) 10)))
 ;(call/empty-state (conj (== (lvar 1) 9)(== (lvar 3) 11)))
@@ -169,7 +171,7 @@
   (cond
     ((null? $1) $2)
     ((functionp $1) (lambda () (mplus $2 (funcall $1))))
-    (t (cons (car $1) (mplus (cdr $1) $2)))))
+    (T (cons (car $1) (mplus (cdr $1) $2)))))
 
 ;The `bind`  function in si-Kanren is  used to  combine two  goals together.  It
 ;takes two arguments,  `$` and  `g`,  where `$` is a goal and  `g` is a function
@@ -184,7 +186,7 @@
   (cond
     ((null? $) mzero)
     ((functionp $) (lambda () (bind (funcall $) g)))
-    (t (mplus (funcall g (car $)) (bind (cdr $) g)))))
+    (T (mplus (funcall g (car $)) (bind (cdr $) g)))))
 
 
 ;The `disj`  function in si-Kanren is  used to  combine two  goals together.  It
@@ -335,10 +337,21 @@
 ;(runno 1 (q)(fresh (x y z)(== q `(,x ,y))(=/= `(,x . 7) `(5 . ,y)) (== z 9)))
 ;(runno 1 (q)(fresh (x y z)(== q `(,x ,y))(== x 9)(=/= `(,x . 7) `(,z . ,y)) (== z 9)(== y 7)))
 ;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== q `(,x ,y))))
-
+;(run* (q) (=/= 4 q)(=/= 3 q))
+;(runno 1 (q)
+  ;(fresh (x y)
+    ;(== `(,x ,y) q)
+    ;(=/= `(,x ,y) `(5 6))
+    ;(=/= x 5)))
+;(load "~/test-suite.lisp")
+;(run 1 (q)
+  ;(fresh (x y)
+    ;(== `(,x ,y) q)
+    ;(=/= x 5)
+    ;(=/= `(,x ,y) `(5 6))))
 ;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== x 5)))
-;(runno 1 (q)(fresh (x y) (=/= x 5)(== x 5)))
-;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== x 5)(== y 7)))
+;(run 1 (q)(fresh (x y) (=/= x 5)(== x 5)))
+;(run 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== x 5)(== y 7)))
 ;(unify* '((#(2) . 5))  '((#(0) . #(1)) (#(2) . 5)))
 ;(reform-d  '(((#(2) . 5))) '() '((#(0) . #(1)) (#(2) . 5)))
 
@@ -372,19 +385,19 @@
 ;constraint section of the code and is used to handle constraints related to the
 ;equality and disequality of variables in the Kanren system.
 ;(defun normalize-disequality-store (s/c/d)
-  ;(bind (mapm (lambda (es)
-                ;(let ((d^ (disequality (mapcar #'car es)
-                                       ;(mapcar #'cdr es)
-                                       ;(s-of s/c/d))))
-                   ;(if d^
-                       ;(if (equal d^ '(()))
-                           ;'(())
-                           ;d^)
-                       ;mzero)))
-              ;(filter (lambda (l) (not (null? l)))
-                      ;(cadr s/c/d)))
-        ;(lambda (d)
-          ;(unit (make-st  (s/c-of s/c/d) d (ty-of s/c/d) (a-of s/c/d))))))
+ ;(bind (mapm (lambda (es)
+               ;(let ((d^ (disequality (mapcar #'car es)
+                                      ;(mapcar #'cdr es)
+                                      ;(s-of s/c/d))))
+                  ;(if d^
+                      ;(if (equal d^ '(()))
+                          ;'(())
+                          ;d^)
+                      ;mzero)))
+             ;(filter (lambda (l) (not (null? l)))
+                     ;(cadr s/c/d)))
+       ;(lambda (d)
+         ;(unit (make-st  (s/c-of s/c/d) d (ty-of s/c/d) (a-of s/c/d))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;  ALTERNATIVE NORMALIZATION   ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -515,7 +528,7 @@
         ((let ((s^ (unify (caar d) (cdar d) S)))
            (when (not (equal s^ '(())))
             (funcall (lambda (S) (unify* (cdr d) S)) s^))))
-        (t nil)))
+        (T nil)))
 
 ;(defun unify* (d S)
   ;(cond ((null? d) S)
@@ -533,7 +546,7 @@
                               'err
                               (let ((d+ (subtract-s S^ S)))
                                 (reform-D (cdr D) (cons d+ D^) S)))) d*))))
-        (t (reform-D (cdr D) D^ S))))
+        (T (reform-D (cdr D) D^ S))))
 
 ;(defun reform-D (D D^ S)
   ;(cond ((null? D) D^)
@@ -626,10 +639,10 @@
                     (if t/x (unit t/x)
                             mzero)))
                 ((pair? u) mzero)
-                (t
+                (T
                   (cond
                     ((funcall pred u) (unit st))
-                    (t mzero)))))))))
+                    (T mzero)))))))))
 
 ;The `ext-TY` function is  used to extend the type constraint  store `TY` with a
 ;new type constraint.  It takes four arguments: `x`, which is the variable to be
@@ -655,7 +668,7 @@
    ; Ran out of type constraints without any conflicts, add new type constraint
    ; to the store (because the type constraint store is empty).
    ((null? TY) `((,x . (,tag . ,pred))))
-   (t (let ((ty (car TY))
+   (T (let ((ty (car TY))
             (TY-next (cdr TY)))
         (let ((t-tag (tag-of ty)))
           (cond
@@ -665,10 +678,10 @@
                ; Is it same as the new constraint? Then do not extend the store
                ((tag=? t-tag tag) '())
                ; Is it conflicting with the new constraint? Then fail.
-               (t "err")))
+               (T "err")))
              ; The current constraint is not on x, continue going through
              ; rest of the constraints
-           (t (ext-TY x tag pred TY-next))))))))
+           (T (ext-TY x tag pred TY-next))))))))
 
 ;The following two have to move in wrappers.lisp when ready;;;;;;;;;;;;;;;;;;;;
 ;The `subsumed-d-pr?` function checks if a disequality constraint is subsumed by
@@ -694,11 +707,11 @@
          ; We want the disequality to be between a variable and a constant,
          ;can ignore constraints between two variables.
                      ((lvar? u) '())
-                     (t (let ((sc (assoc  (car d-pr) TY :test #'equalp)))
+                     (T (let ((sc (assoc  (car d-pr) TY :test #'equalp)))
                           (and sc
                             (cond
                               ((funcall (pred-of sc) u) ())
-                              (t t)))))))))
+                              (T T)))))))))
 
 ;The `rem-subsumed-D<T`  function removes subsumed  disequality constraints from
 ;the disequality store (`D`).  It takes the type constraint store (`TY`) and the
@@ -731,7 +744,7 @@
           (funcall (lambda (T+)
                      (cond ((null? T+) st)
                            ((equal T+ "err") '())
-                           (t (let ((TY-next (append T+ (TY-of st)))
+                           (T (let ((TY-next (append T+ (TY-of st)))
                                     (D (rem-subsumed-d<t T+ (D-of st))))
                                 (make-st (S/C-of st) D TY-next (a-of st)))))) ty)))
 

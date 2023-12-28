@@ -469,6 +469,15 @@
                             (rec (cdr x) acc))))))
         (rec x nil)))
 
+;(defun flat-d (d)
+  ;(apply 'concatenate 'list
+         ;(apply 'concatenate 'list
+                ;(apply 'concatenate 'list d))))
+
+(defun flat-d (d)
+         (apply 'concatenate 'list
+                (apply 'concatenate 'list d)))
+
 ;The  `normalize-fresh`  function  is  responsible  for  getting  rid  of  unused
 ;variables in  the `fresh`  macro.  It takes a  state-constraint pair  `s/c/d` as
 ;input and  returns a modified version  of `d` that removes  any constraints that
@@ -495,7 +504,7 @@
                   (if (unused (car d) l)
                       (norm l (cdr d))
                       (cons (car d)(norm l (cdr d))))))))
-    (let ((d^ (apply 'concatenate 'list (apply 'concatenate 'list (remove-subsumed (cdar s/c/d))))))
+    (let ((d^ (flat-d (remove-subsumed (cdar s/c/d)))))
      (norm s/c/d d^))))
 
 ;;;;;;;;;;;;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;;;;;;;;;;;;;
