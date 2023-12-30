@@ -504,7 +504,7 @@
                   (if (unused (car d) l)
                       (norm l (cdr d))
                       (cons (car d)(norm l (cdr d))))))))
-    (let ((d^ (flat-d (remove-subsumed (cdar s/c/d)))))
+    (let ((d^ (flat-d (remove-subsumed (cadar s/c/d)))))
      (norm s/c/d d^))))
 
 ;;;;;;;;;;;;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;;;;;;;;;;;;;

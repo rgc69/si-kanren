@@ -530,12 +530,6 @@
             (funcall (lambda (S) (unify* (cdr d) S)) s^))))
         (T nil)))
 
-;(defun unify* (d S)
-  ;(cond ((null? d) S)
-        ;((let ((s^ (disequality  (caar d) (cdar d) S)))
-              ;(funcall (lambda (S) (unify* (cdr d) S)) s^)))
-        ;(t nil)))
-
 (defun reform-D (D D^ S)
   (cond ((null? D) D^)
         ((let ((d* (unify* (car D) S)))
@@ -543,7 +537,7 @@
                nil
                (funcall (lambda (S^)
                           (if (equalp S S^)
-                              'err
+                              "err"
                               (let ((d+ (subtract-s S^ S)))
                                 (reform-D (cdr D) (cons d+ D^) S)))) d*))))
         (T (reform-D (cdr D) D^ S))))
@@ -560,39 +554,36 @@
                                 ;(reform-D (cdr D) (cons d+ D^) S)))) d*))))
         ;(t (reform-D (cdr D) D^ S))))
 
-;(defun reform-D (D D^ S)
-  ;(cond ((null? D) D^)
-        ;((let ((d* (disequality (caar D)(cdar D) S)))
-              ;(if d*
-                ;(if (equal d* '(()))
-                    ;(unit(reform-D (cdr D) D^ S))
-                    ;(unit(reform-d (cdr D) (cons d* D^) S)))
-                ;nil)))))
+(defun ==-verify (S+ st)
+  (cond ((equal S+ '(())) mzero)
+        ((equalp (S-of st) S+) (unit st))
+        ((let ((rd (reform-D (d-of st) '() S+)))
+            (funcall (lambda (D)
+                       (cond ((equal rd "err") nil)
+                             ((let ((rt (reform-T (ty-of st) S+)))
+                                (funcall (lambda (TY)
+                                           (if (or (equal TY "err1")(equal TY "err2"))
+                                               nil
+                                               (unit (make-st
+                                                           (cons S+ (C-of st))
+                                                           (rem-subsumed-D<T TY D)
+                                                           TY
+                                                           (a-of st))))) rt))))) rd)))
+       (t mzero)))
 
 ;(defun ==-verify (S+ st)
   ;(cond ((equal S+ '(())) mzero)
         ;((equalp (S-of st) S+) (unit st))
-        ;((let ((rd (reform-D (d-of st) '() S+)))
-            ;(unit (make-st
-                        ;(cons S+ (C-of st))
-                        ;rd
-                        ;(ty-of st)
-                        ;(a-of st)))))
-       ;(t mzero)))
-
-(defun ==-verify (S+ st)
-  (cond ((equal S+ '(())) mzero)
-        ((equalp (S-of st) S+) (unit st))
-        ((if (not (null? (d-of st)))
-             (let ((rd (reform-D (d-of st) '() S+)))
-                  (if (equal rd 'err)
-                      nil
-                      (unit (make-st
-                                  (cons S+ (C-of st))
-                                  rd
-                                  (ty-of st)
-                                  (a-of st)))))
-            (unit(make-st (cons S+ (c-of st)) (d-of st) (ty-of st) (a-of st)))))))
+        ;((if (not (null? (d-of st)))
+             ;(let ((rd (reform-D (d-of st) '() S+)))
+                  ;(if (equal rd 'err)
+                      ;nil
+                      ;(unit (make-st
+                                  ;(cons S+ (C-of st))
+                                  ;rd
+                                  ;(ty-of st)
+                                  ;(a-of st)))))
+            ;(unit(make-st (cons S+ (c-of st)) (d-of st) (ty-of st) (a-of st)))))))
 ;(defun == (u v) (lambda (st) (==-verify (unify u v (S-of st)) st)))
 ;;;;;;;;;;;;;;;;;;;;;;   Type constraint     ;;;;;;;;;;;;;;;;;
 
@@ -771,3 +762,57 @@
 ;Overall, the `numbero` function is used to add a type constraint that checks if
 ;a term is a number in the si-Kanren system.
 (defun numbero (u) (funcall (make-type-constraint 'num #'numberp) u))
+
+;(runno 1 (q) (numbero q)) ;; funziona
+;(run 1 (q)(== q 'cat)(== q 3)) ;; funziona
+;(run 1 (q)(== q 'cat)(symbolo q)) ;; funziona
+;(run 1 (q)(symbolo q)(== q 'cat)) ;;  funziona
+;(run 1 (q)(symbolo q)(== q 3)) ;; non funziona
+;(runno 1 (q)(symbolo q)(== q 3)) ;; non funziona
+;(runno 1 (q)(== q 'cat)(symbolo q)) ;; funziona
+;(run 1 (q)(== q 'cat)(numbero q)) ;; funziona
+;(runno 1 (q)(numbero q)(== q 'cat)) ;; non funziona
+;(run 1 (q) (numbero q)(== q 3)) ;; funziona
+;(run 1 (q)(== q 3) (numbero q)) ;;funziona
+
+;(runno 1 (q) (fresh (x) (numbero x) (symbolo q)))
+;(runno 1 (q) (fresh (x)(=/= q 'cat) (numbero x) (symbolo q)))
+;(runno 1 (q) (fresh (x)(=/= q 3) (numbero x) (symbolo q)))
+;(runno 1 (q) (fresh (x)(== q 3) (numbero x) (symbolo q)))
+;(runno 1 (q) (fresh (x)(== q 3) (numbero x) (numbero q)))
+;(run 1 (q) (fresh (x) (numbero x) (symbolo q)))
+;(reform-t '((#(1) sym . symbolp)) '((#(1) . 3) (#(0) .#(1))))
+;(reform-t '((#(1) num . numberp)) '((#(1) . 3) (#(0) .#(1))))
+;(ext-ty #(2) 'num #'numberp '((#(2) sym . symbolp)))
+
+;(defun reform-T (TY S)
+  ;(cond ((null? TY) '())
+        ;((let ((rt (reform-T (cdr TY) S)))
+           ;(funcall (lambda (T0)
+                      ;(let ((u (walk (car (car TY)) S))
+                            ;(tag (tag-of (car TY)))
+                            ;(pred (pred-of (car TY))))
+                        ;(cond ((lvar? u)
+                               ;(cond ((let ((et (ext-TY u tag pred T0)))
+                                       ;(funcall (lambda (T+) (append T+ T0)) et)))
+                                     ;(T "erri0")))
+                              ;(T (when (not (and (funcall pred  u) T0)) nil))))) rt)))
+        ;(T 'mnt)))
+
+(defun reform-T (TY S)
+  (cond ((null? TY) '())
+        ((let ((rt (reform-T (cdr TY) S)))
+           (funcall (lambda (T0)
+                      (let ((u (walk (car (car TY)) S))
+                            (tag (tag-of (car TY)))
+                            (pred (pred-of (car TY))))
+                        (cond ((lvar? u)
+                               (cond ((let ((et (ext-TY u tag pred T0)))
+                                       (funcall (lambda (T+) (append T+ T0)) et)))
+                                     (T "err1")))
+                              (T (if
+                                     (funcall pred  u)
+                                     "rmv"
+                                     "err2")))))
+                    rt)))
+        (T "mnt")))
