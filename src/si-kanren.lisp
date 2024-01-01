@@ -562,13 +562,14 @@
                        (cond ((equal rd "err") nil)
                              ((let ((rt (reform-T (ty-of st) S+)))
                                 (funcall (lambda (TY)
-                                           (if (or (equal TY "err1")(equal TY "err2"))
-                                               nil
-                                               (unit (make-st
-                                                           (cons S+ (C-of st))
-                                                           (rem-subsumed-D<T TY D)
-                                                           TY
-                                                           (a-of st))))) rt))))) rd)))
+                                           (cond ((equal TY "err") mzero)
+                                                 ((equal TY "mnt") st)
+                                                 ((equal TY "rmv") 'pippo)
+                                                 (T (unit (make-st
+                                                                (cons S+ (C-of st))
+                                                                (rem-subsumed-D<T TY D)
+                                                                TY
+                                                                (a-of st)))))) rt))))) rd)))
        (t mzero)))
 
 ;(defun ==-verify (S+ st)
@@ -620,13 +621,9 @@
   (lambda (u)
     (lambda (st)
       (let ((S (S-of st)))
-            ;(S/C (S/C-of st))
-            ;(D (D-of st))
-            ;(TY (TY-of st)))
-            ;(A (A-of st)))
         (let ((u (walk u S)))
           (cond ((lvar? u)
-                 (let ((t/x (make-type-constraint/x u tag pred st)));A)))
+                 (let ((t/x (make-type-constraint/x u tag pred st)))
                     (if t/x (unit t/x)
                             mzero)))
                 ((pair? u) mzero)
@@ -713,7 +710,6 @@
 (defun rem-subsumed-D<T (TY D)
   (delete-if (subsumed-d-pr? TY) D))
 
-
 ;The `make-type-constraint/x` function takes four arguments: `u`, `tag`, `pred`,
 ;and `st`.
 ;It  first extends  the type  constraint  store  `TY`  with  the  new constraint
@@ -763,41 +759,64 @@
 ;a term is a number in the si-Kanren system.
 (defun numbero (u) (funcall (make-type-constraint 'num #'numberp) u))
 
+;(runno 1 (q) q) ;; funziona
 ;(runno 1 (q) (numbero q)) ;; funziona
 ;(run 1 (q)(== q 'cat)(== q 3)) ;; funziona
+;(runno 1 (q)(== q 'cat)(symbolo q)) ;; funziona
 ;(run 1 (q)(== q 'cat)(symbolo q)) ;; funziona
 ;(run 1 (q)(symbolo q)(== q 'cat)) ;;  funziona
-;(run 1 (q)(symbolo q)(== q 3)) ;; non funziona
-;(runno 1 (q)(symbolo q)(== q 3)) ;; non funziona
-;(runno 1 (q)(== q 'cat)(symbolo q)) ;; funziona
+;(runno 1 (q)(symbolo q)(== q 'cat)) ;;  funziona
+;(run 1 (q)(symbolo q)(== q 3)) ;; funziona
+;(runno 1 (q)(symbolo q)(== q 3)) ;; funziona
 ;(run 1 (q)(== q 'cat)(numbero q)) ;; funziona
-;(runno 1 (q)(numbero q)(== q 'cat)) ;; non funziona
+;(runno 1 (q)(numbero q)(== q 'cat)) ;; funziona
 ;(run 1 (q) (numbero q)(== q 3)) ;; funziona
+;(runno 1 (q) (numbero q)(== q 3)) ;; funziona
 ;(run 1 (q)(== q 3) (numbero q)) ;;funziona
-
+;(runno 1 (q)(== q 3) (numbero q)) ;;funziona
+;(runno 1 (q)(fresh (x) (numbero x)(== q 3) (numbero q))) ;;funziona
+;(runno 1 (q) (=/= 'cat q) (numbero q)) ;; non funziona
+;(runno 1 (q) (numbero q) (=/= 'cat q)) ;; non funziona
+;(runno 1 (q) (fresh (a) (=/= 'cat a) (numbero a)))  ;; non funziona
 ;(runno 1 (q) (fresh (x) (numbero x) (symbolo q)))
 ;(runno 1 (q) (fresh (x)(=/= q 'cat) (numbero x) (symbolo q)))
 ;(runno 1 (q) (fresh (x)(=/= q 3) (numbero x) (symbolo q)))
 ;(runno 1 (q) (fresh (x)(== q 3) (numbero x) (symbolo q)))
-;(runno 1 (q) (fresh (x)(== q 3) (numbero x) (numbero q)))
+;(runno 1 (q) (fresh (x)(== q 3)(== x 3) (numbero q)))
+;(runno 1 (q) (fresh (x)(== q 3)(numbero x) (numbero q)))
+;(runno 1 (q) (fresh (x)(== q 3)(== x 3) (numbero x) (numbero q)))
+;(runno 1 (q) (fresh (x y)(== `(,x 9) `(8 ,y))(== q `(,x ,y))(symbolo y)))
+;(runno 1 (q) (fresh (x y)(symbolo y)(== `(,x 9) `(8 ,y))(== q `(,x ,y))))
+;(runno 1 (q) (fresh (x y)(symbolo y)(== `(,x cat) `(8 ,y))(== q `(,x ,y))))
+;(runno 1 (q) (fresh (x y w z)
+                ;(symbolo y)
+                ;(numbero x)
+                ;(numbero w) (== '(8 cat) `(,x ,y))))
+;(runno 1 (q) (fresh (x)(== q 3)(== x 3) (numbero x) (symbolo q)))
+;(runno 1 (q) (fresh (x)(== q 3) (numbero x) (numbero q)(== x 9)))
+;(runno 1 (q) (fresh (x)(== q 3) (numbero q)))
 ;(run 1 (q) (fresh (x) (numbero x) (symbolo q)))
 ;(reform-t '((#(1) sym . symbolp)) '((#(1) . 3) (#(0) .#(1))))
-;(reform-t '((#(1) num . numberp)) '((#(1) . 3) (#(0) .#(1))))
+;(reform-t '((#(2) num . numberp)) '((#(1) . 3) (#(0) .#(1))))
 ;(ext-ty #(2) 'num #'numberp '((#(2) sym . symbolp)))
-
+;(runno 1 (q) (fresh (x) (== x q) (symbolo q) (symbolo x)))
+;(runno 1 (q) (fresh (x) (symbolo q) (== 'y x) (== x q)))
+;(runno 1 (q) (fresh (x) (== q x) (symbolo q)))
+;(reform-t '((#(2) sym . symbolp)) '((#(2) . 5) (#(1) . #(2)) (#(0) .#(1))))
+;(runno 1 (q) (fresh (x) (== q x) (symbolo q) (== 5 x)))
 ;(defun reform-T (TY S)
-  ;(cond ((null? TY) '())
-        ;((let ((rt (reform-T (cdr TY) S)))
-           ;(funcall (lambda (T0)
-                      ;(let ((u (walk (car (car TY)) S))
-                            ;(tag (tag-of (car TY)))
-                            ;(pred (pred-of (car TY))))
-                        ;(cond ((lvar? u)
-                               ;(cond ((let ((et (ext-TY u tag pred T0)))
-                                       ;(funcall (lambda (T+) (append T+ T0)) et)))
-                                     ;(T "erri0")))
-                              ;(T (when (not (and (funcall pred  u) T0)) nil))))) rt)))
-        ;(T 'mnt)))
+ ;(cond ((null? TY) '())
+       ;((let ((rt (reform-T (cdr TY) S)))
+          ;(funcall (lambda (T0)
+               ;(let ((u (walk (car (car TY)) S))
+                     ;(tag (tag-of (car TY)))
+                     ;(pred (pred-of (car TY))))
+                 ;(cond ((lvar? u)
+                        ;(cond ((let ((et (ext-TY u tag pred T0)))
+                                ;(funcall (lambda (T+) (append T+ T0)) et)))
+                              ;(T "erri0")))
+                       ;(T (when (not (and (funcall pred  u) T0)) nil))))) rt)))
+       ;(T 'mnt)))
 
 (defun reform-T (TY S)
   (cond ((null? TY) '())
@@ -808,11 +827,11 @@
                             (pred (pred-of (car TY))))
                         (cond ((lvar? u)
                                (cond ((let ((et (ext-TY u tag pred T0)))
-                                       (funcall (lambda (T+) (append T+ T0)) et)))
-                                     (T "err1")))
-                              (T (if
-                                     (funcall pred  u)
+                                       (cond ((equal et "err") mzero)
+                                             ((equal et nil) rt)
+                                             (T (funcall (lambda (T+) (append T+ T0)) et)))))
+                                     (T "err")))
+                              (T (if (funcall pred  u)
                                      "rmv"
-                                     "err2")))))
-                    rt)))
+                                     "err"))))) rt)))
         (T "mnt")))
