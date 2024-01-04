@@ -121,36 +121,8 @@
           ;(unit(make-st (cons s^ (c-of s/c/d))(d-of s/c/d)(ty-of s/c/d)(a-of s/c/d))))
          ;mzero))))
 
-;(defun == (u v)
-  ;(lambda (s/c/d)
-    ;(let ((s^ (unify u v (s-of s/c/d)))))
-    ;(let ((d^ (disequality u v (s-of s/c/d)))
-          ;(s/c (s/c-of s/c/d))
-          ;(d (d-of s/c/d))
-          ;(ty (ty-of s/c/d))
-          ;(a (a-of s/c/d)))
-      ;(if d^
-        ;(if (equal d^ '(()))
-            ;(unit s/c/d)
-         ;(unit (cons (cons (caar s/c/d) (cdar s/c/d))(cdr s/c/d)))
-            ;(unit (cons (cons (caar s/c/d) (cdar s/c/d)) (cons d^ (cdr s/c/d)))))
-           ;(post-unify-=/= s/c (car d^) d ty a))
-         ;(unit(unit (make-st (s-of s/c/d) (c-of s/c/d) (cons d^ (d-of s/c/d))))))
-         ;(unit (cons (cons (s-of s/c/d) (c-of s/c/d)) (cons d^ (d-of s/c/d)))))
-       ;mzero)))
-
 (defun == (u v) (lambda (st) (==-verify (unify u v (S-of st)) st)))
-;(== (lvar 3) 9)
-;(funcall * (empty-state))
-;(unify (lvar 3) 9 '())
-;(run 1 (q)(=/= q 3)(=/= q 4)(=/= q 7)(=/= q 9))
-;(run 1 (q)(=/= q 3)(=/= q 4)(=/= q 7)(== q 9))
-;(runno 1 (q) (fresh (x y) (== x 9) (== y x)(== q `(,x ,y))))
-;(=/= '#(0) 3)
-;(call/empty-state (conj+ (=/= (lvar 1) 9)(== (lvar 3) 11) (== (lvar 1) 10)))
-;(call/empty-state (conj (== (lvar 1) 9)(== (lvar 3) 11)))
-;(call/empty-state (conj (=/= (lvar 1) 9)(=/= (lvar 3) 11)))
-;(funcall *)
+
 ;The  `mplus`  function  is  used  to  concatenate  two  streams.  It  takes two
 ;arguments,  `$1` and `$2`,  and returns a stream that contains all the elements
 ;from both `$1` and `$2`. If `$1` is empty, it simply returns `$2`, otherwise it
@@ -224,7 +196,7 @@
 
 ;;"si-kanren" stops
 
-;;;;;;;;;;;;;;;;;;;;;;;   Disequality   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;   Disequality constraint   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun filter (f l) (if (equal l '())
                         '()
@@ -241,14 +213,14 @@
 ;`v`.  It then recursively calls `mapm` with `f` and the rest of `l`,  and binds
 ;the  result to  `vs`.  Finally,  it constructs  a unit  containing a  list that
 ;concatenates `v` and `vs`, and returns this unit.
-(defun mapm (f l)
-  (if (null? l)
-      (unit '())
-      (bind (funcall f (car l))
-            (lambda (v)
-              (bind (mapm f (cdr l))
-                    (lambda (vs)
-                      (unit (cons v vs))))))))
+;(defun mapm (f l)
+  ;(if (null? l)
+      ;(unit '())
+      ;(bind (funcall f (car l))
+            ;(lambda (v)
+              ;(bind (mapm f (cdr l))
+                    ;(lambda (vs)
+                      ;(unit (cons v vs))))))))
 
 ;The `subtract-s` function is used to subtract one substitution from another. It
 ;takes  two  substitutions  `s^`  and  `s`   as  arguments  and  returns  a  new
@@ -287,37 +259,33 @@
 ;satisfiable.
 ;(defun =/= (u v)
   ;(lambda (s/c/d)
-    ;(let ((u* (unify u v (s-of s/c/d)))
-          ;(s (s-of s/c/d))
-          ;(c (c-of s/c/d))
-          ;(d (d-of s/c/d)))
-      ;(if u*
-          ;(if (equal u* '(()))
+    ;(let ((d^ (disequality u v (s-of s/c/d))))
+      ;(if d^
+          ;(if (equal d^ '(()))
               ;(unit s/c/d)
-              ;(funcall (post-unify-=/= s c d) u*))))))
-             ;(unit (cons (cons (caar s/c/d) (cdar s/c/d))(cdr s/c/d))
-                ;(unit (cons (cons (caar s/c/d) (cdar s/c/d)) (cons d^ (cdr s/c/d))))
-               ;(post-unify-=/= s/c (car d^) d ty a))
-         ;(unit(unit (make-st (s-of s/c/d) (c-of s/c/d) (cons d^ (d-of s/c/d)))))
-         ;(unit (cons (cons (s-of s/c/d) (c-of s/c/d)) (cons d^ (d-of s/c/d))))
-       ;mzero
+              ;(unit (make-st (s/c-of s/c/d) (rem-subsumed-d<t (ty-of s/c/d)(cons d^ (d-of s/c/d))) (ty-of s/c/d)(a-of s/c/d))))
+       ;mzero))))
 
-;(defun post-unify-=/= (S C DS)
-  ;(lambda (S+)
-    ;(cond ((equal S+ S) mzero)
-          ;(t (let ((d (subtract-s  S+ S)))
-              ;(unit (make-st (cons S C)
-                             ;(filter (lambda (l) (not (null? l)))(cons (car d) DS))
-                             ;'()
-                             ;'())))))))
 (defun =/= (u v)
   (lambda (s/c/d)
     (let ((d^ (disequality u v (s-of s/c/d))))
       (if d^
           (if (equal d^ '(()))
               (unit s/c/d)
-              (unit (make-st (s/c-of s/c/d) (rem-subsumed-d<t (ty-of s/c/d)(cons d^ (d-of s/c/d))) (ty-of s/c/d)(a-of s/c/d))))
-              ;(unit (cons (cons (s-of s/c/d) (c-of s/c/d)) (cons d^ (d-of s/c/d)))))
+              (let ((rt (reform-T (ty-of s/c/d) (s-of s/c/d))))
+                 (funcall (lambda (TY)
+                            (cond ((member '(err) TY :test #'equal ) mzero)
+                                  ((member nil TY)
+                                   (unit (make-st
+                                          (cons (s-of s/c/d) (c-of s/c/d))
+                                          (rem-subsumed-D<T TY (cons d^ (d-of s/c/d)))
+                                          (remove nil rt)
+                                          (a-of s/c/d))))
+                                  (T (unit (make-st
+                                                 (cons (s-of s/c/d) (c-of s/c/d))
+                                                 (rem-subsumed-d<t TY (cons d^ (d-of s/c/d)))
+                                                 TY
+                                                 (a-of s/c/d)))))) rt)))
        mzero))))
 
 
@@ -331,8 +299,30 @@
 ;(unify '#(3) 5 '((#(3) . 5)))
 ;(cons * 0)
 ;(==  '#(4) 11)
-;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y))))
-;(runno 1 (q)(fresh (x y) (== q `(,x ,y))(=/= `(,x . 7) `(5 . ,y))))
+;(runno 1 (q)
+    ;(fresh (w z)
+      ;(numbero w)
+      ;(=/= `(,z . ,w) `(5 . 6))
+      ;(== `(,w ,z) q)))
+;(runno 1 (q)
+    ;(fresh (w x y z)
+      ;(=/= `(,w ,y) `(,x ,z))
+      ;(== w 'a)
+      ;(== x 'a)
+      ;(== `(,w ,x ,y ,z) q)))
+;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (symbolo y)))
+;(runno 1 (q)(fresh (x y)(symbolo x) (=/= `(,x . 7) `(5 . ,y))))
+;(runno 1 (q)(fresh (x y)(== q `(,x ,y)) (=/= `(,x . 7) `(5 . ,y))(symbolo x)))
+;(normalize-fresh (runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)))))
+;(normalize (runno 1 (q)(fresh (x y)(== q x)(== x q) (=/= `(,x . 7) `(5 . ,y)))))
+;(runno 1 (q)(fresh (x y)(== q x)(numbero y) (== x q) (=/= `(,x . 7) `(5 . ,y))))
+;(runno 1 (q)(fresh (x y)(== q x)(numbero x) (== x q) (=/= `(,x . 7) `(5 . ,y))))
+;(runno 1 (q)(fresh (x y)(numbero x)(== x q)(=/= y 8) (=/= x 'cat)))
+;(normalize-conde (runno 1 (q)(fresh (x y)(numbero x) (=/= `(,x . 7) `(cat . ,y))(== x q))))
+;(caddar **)
+;(ty-of (car ***))
+;(normalize-conde (runno 1 (q)(fresh (x y)(== q x)(numbero y) (== x q) (=/= `(,x . 7) `(5 . ,y)))))
+;(normalize-conde (runno 1 (q)(fresh (x y) (== q `(,x ,y))(=/= `(,x . 7) `(5 . ,y)))))
 ;(runno 1 (q)(fresh (x y z) (== z 9) (== q `(,x ,y))(=/= `(,x . 7) `(5 . ,y))))
 ;(runno 1 (q)(fresh (x y z)(== q `(,x ,y))(=/= `(,x . 7) `(5 . ,y)) (== z 9)))
 ;(runno 1 (q)(fresh (x y z)(== q `(,x ,y))(== x 9)(=/= `(,x . 7) `(,z . ,y)) (== z 9)(== y 7)))
@@ -344,11 +334,23 @@
     ;(=/= `(,x ,y) `(5 6))
     ;(=/= x 5)))
 ;(load "~/test-suite.lisp")
+;(run* (q) (rembero 'a '(a b a c) q))
 ;(run 1 (q)
-  ;(fresh (x y)
-    ;(== `(,x ,y) q)
-    ;(=/= x 5)
-    ;(=/= `(,x ,y) `(5 6))))
+  ;(=/= q '())
+  ;(=/= q '(foo))
+  ;(=/= q 5))
+;(runno 10 (q) (rembero 'a '(a b c) '(a b c)))
+;(run 1 (q) (=/= q nil))
+;(run 1 (a b c d)
+     ;(=/= (cons a c)
+          ;(cons b d))
+     ;(== c '(1 . 2))
+     ;(== d '(1 . 3)))
+;(run 1 (q)
+ ;(fresh (x y)
+   ;(== `(,x ,y) q)
+   ;(=/= x 5)
+   ;(=/= `(,x ,y) `(5 6))))
 ;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== x 5)))
 ;(run 1 (q)(fresh (x y) (=/= x 5)(== x 5)))
 ;(run 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== x 5)(== y 7)))
@@ -415,7 +417,7 @@
 ;(reform-d '((#(3) . 4) (#(4) . 7)) '() '((#(0) . #(1)) (#(2) . 3)))
 
 ;(reform-d '(((#(2) . 3))) '() '((#(0) . #(1)) (#(2) . 3)))
-;(reform-d '(((#(3) . 8))) '() '((#(0) . #(1)) (#(2) . 5) (#(3) . 7)))
+;(reform-d '(((#(3) . 7))) '() '((#(0) . #(1)) (#(2) . 5) (#(3) . 7)))
 
 ;(runno 1 (q) (fresh (x y) (=/= x 5) (=/= y 9) (== q 3)))
 ;(reform-d '(((#(2) . 3)) ((#(4) . 7))) '() '((#(0) . #(1)) (#(2) . 3)))
@@ -424,7 +426,7 @@
 ;(reform-d '(((#(2) . 3))((#(1) . 7)) ((#(1) . 4))) '() '((#(0) . #(1))(#(2) . 3)))
 ;(reform-d '(((#(2) . 4))((#(1) . 7)) ((#(1) . 4))) '() '((#(0) . #(1))(#(2) . 3)))
 ;(reform-d '(((#(5) . 3) (#(3) . cat))) '() '((#(0) . #(1))(#(5) . 9) (#(4) . cat)))
-;(reform-d '(((#(5) . 3) (#(4) . cat))) '() '((#(0) . #(1))(#(5) . 9) (#(4) . cat)))
+;(reform-d '(((#(5) . 3) (#(4) . cat))((#(2) . 1))) '() '((#(0) . #(1))(#(6) . 9) (#(7) . cat)))
 ;(flatten* * 1)
 ;(unify* (car '(((#(5) . 3)) ((#(3) . 7)))) '((#(0) . #(1)) (#(2) . 3)))
 ;(unify* '((#(2) . 4) (#(4) . 7)) '((#(0) . #(1)) (#(2) . 3)))
@@ -437,17 +439,6 @@
 ;(subtract-s * '((#(0) . #(1)) (#(2) . 3)))
 ;(cons * '((#(0) . #(1)) (#(2) . 3)))
 ;(normalize-disequality-store *)
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;   DISEQUALITY DI COPPIA ;;;;;;;;;;;;;;;;;;;;
-
-;(unify '(#(5) . 3) '(9 . #(2)) '((#(0) . #(1)) (#(3) . cat)))
-;(subtract-s * '((#(0) . #(1)) (#(3) . cat)))
-;(unify* '((#(1) 9)) '((#(2) . 5) (#(3) . cat)))
-;(unify '(#(5) . 3) '(9 . #(2)) *)
-;(subtract-s  * **)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;(runno 1 (q) (fresh (x y)(== q `(,x ,y))(=/= `(,x 3) `(cat ,y))))
 ;(runno 1 (q) (fresh (x y)(== q 9)(=/= `(,x 3) `(cat ,y))))
@@ -542,18 +533,6 @@
                                 (reform-D (cdr D) (cons d+ D^) S)))) d*))))
         (T (reform-D (cdr D) D^ S))))
 
-;(defun reform-D (D D^ S)
-  ;(cond ((null? D) D^)
-        ;((let ((d* (unify* (car D) S)))
-           ;(if (or (equal d* '(())) (equal d* nil))
-               ;nil
-               ;(funcall (lambda (S^)
-                          ;(if (equalp S S^)
-                              ;nil
-                              ;(let ((d+ (subtract-s S^ S)))
-                                ;(reform-D (cdr D) (cons d+ D^) S)))) d*))))
-        ;(t (reform-D (cdr D) D^ S))))
-
 (defun ==-verify (S+ st)
   (cond ((equal S+ '(())) mzero)
         ((equalp (S-of st) S+) (unit st))
@@ -563,7 +542,6 @@
                              ((let ((rt (reform-T (ty-of st) S+)))
                                 (funcall (lambda (TY)
                                            (cond ((member '(err) TY :test #'equal ) mzero)
-                                                 ((equal TY "mnt") st)
                                                  ((member nil TY)
                                                   (unit (make-st
                                                          (cons S+ (C-of st))
@@ -577,21 +555,7 @@
                                                                 (a-of st)))))) rt))))) rd)))
        (t mzero)))
 
-;(defun ==-verify (S+ st)
-  ;(cond ((equal S+ '(())) mzero)
-        ;((equalp (S-of st) S+) (unit st))
-        ;((if (not (null? (d-of st)))
-             ;(let ((rd (reform-D (d-of st) '() S+)))
-                  ;(if (equal rd 'err)
-                      ;nil
-                      ;(unit (make-st
-                                  ;(cons S+ (C-of st))
-                                  ;rd
-                                  ;(ty-of st)
-                                  ;(a-of st)))))
-            ;(unit(make-st (cons S+ (c-of st)) (d-of st) (ty-of st) (a-of st)))))))
-;(defun == (u v) (lambda (st) (==-verify (unify u v (S-of st)) st)))
-;;;;;;;;;;;;;;;;;;;;;;   Type constraint     ;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;   Type constraint     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun tag=? (t0 t1)
   (eq t0 t1))
@@ -601,41 +565,6 @@
 
 (defun pred-of (ty)
    (cddr ty))
-
-;The `make-type-constraint` function  is used to create a  type constraint for a
-;logical variable. It takes four arguments: `tag`, `pred`, `u`, and `st`.
-;The `tag` argument represents the tag of the type constraint, which can be used
-;to identify  the type  of the constraint.  The  `pred` argument  represents the
-;predicate function used to check if a value satisfies the constraint.
-;The `u` argument represents the logical  variable for which the type constraint
-;is  being  created.  It  is  passed  to  the  `walk`  function  along  with the
-;substitution `S` from the state `st` to resolve the value of `u` in the current
-;substitution.
-;The `st` argument represents the current  state in the si-Kanren system.  It is
-;used to access the substitution store `S` and the type constraint store `TY`.
-;Inside the  `make-type-constraint` function,  `u` is resolved  using the `walk`
-;function,  and the resulting value is  checked against the constraint predicate
-;using the `pred`  function.  If  the  value  satisfies  the constraint,  a unit
-;containing the unchanged state `st` is returned.  If the value does not satisfy
-;the constraint,  `mzero`  is returned,  indicating that the  conjunction is not
-;satisfiable.
-;Overall, the `make-type-constraint` function is used to define type constraints
-;for logical variables and check if those constraints are satisfied in the given
-;state.
-(defun make-type-constraint (tag pred)
-  (lambda (u)
-    (lambda (st)
-      (let ((S (S-of st)))
-        (let ((u (walk u S)))
-          (cond ((lvar? u)
-                 (let ((t/x (make-type-constraint/x u tag pred st)))
-                    (if t/x (unit t/x)
-                            mzero)))
-                ((pair? u) mzero)
-                (T
-                  (cond
-                    ((funcall pred u) (unit st))
-                    (T mzero)))))))))
 
 ;The `ext-TY` function is  used to extend the type constraint  store `TY` with a
 ;new type constraint.  It takes four arguments: `x`, which is the variable to be
@@ -676,7 +605,6 @@
              ; rest of the constraints
            (T (ext-TY x tag pred TY-next))))))))
 
-;The following two have to move in wrappers.lisp when ready;;;;;;;;;;;;;;;;;;;;
 ;The `subsumed-d-pr?` function checks if a disequality constraint is subsumed by
 ;any existing constraints in the type constraint store (`TY`). It takes the type
 ;constraint store  (`TY`) as  an argument and  returns a  function that  takes a
@@ -731,15 +659,71 @@
 ;`rem-subsumed-D<T` function.
 ;Finally,  it calls the  lambda function with the extended  type constraint `ty`
 ;and returns the result.
+;(defun make-type-constraint/x (u tag pred st)
+     ;(let ((ty (ext-TY u tag pred (TY-OF st))))
+          ;(funcall (lambda (T+)
+                     ;(cond ((equal T+ "same") st)
+                           ;((equal T+ "err") '())
+                           ;(T (let ((TY-next (append T+ (TY-of st)))
+                                    ;(D (rem-subsumed-d<t T+ (D-of st))))
+                                ;(make-st (S/C-of st) D TY-next (a-of st)))))) ty)))
+
+
 (defun make-type-constraint/x (u tag pred st)
-     (let ((ty (ext-TY u tag pred (TY-OF st))))
+     (let ((ty (ext-TY u tag pred (ty-of st))))
           (funcall (lambda (T+)
                      (cond ((equal T+ "same") st)
                            ((equal T+ "err") '())
-                           (T (let ((TY-next (append T+ (TY-of st)))
-                                    (D (rem-subsumed-d<t T+ (D-of st))))
-                                (make-st (S/C-of st) D TY-next (a-of st)))))) ty)))
-
+                           (T (let* ((TY-next (append T+ (ty-of st)))
+                                     (rd (reform-d (d-of st) '() (s-of st)))
+                                     (rt (reform-T TY-next (s-of st))))
+                                   (funcall (lambda (TY)
+                                              (cond ((member '(err) TY :test #'equal ) mzero)
+                                                    ((member nil TY)
+                                                     (make-st
+                                                       (s/c-of st)
+                                                       (rem-subsumed-D<T TY rd)
+                                                       (remove nil TY)
+                                                       '(pippo)))
+                                                    (T  (make-st
+                                                               (s/c-of st)
+                                                               (rem-subsumed-d<t TY rd)
+                                                               TY
+                                                               '(topo))))) rt))))) ty)))
+;The `make-type-constraint` function  is used to create a  type constraint for a
+;logical variable. It takes four arguments: `tag`, `pred`, `u`, and `st`.
+;The `tag` argument represents the tag of the type constraint, which can be used
+;to identify  the type  of the constraint.  The  `pred` argument  represents the
+;predicate function used to check if a value satisfies the constraint.
+;The `u` argument represents the logical  variable for which the type constraint
+;is  being  created.  It  is  passed  to  the  `walk`  function  along  with the
+;substitution `S` from the state `st` to resolve the value of `u` in the current
+;substitution.
+;The `st` argument represents the current  state in the si-Kanren system.  It is
+;used to access the substitution store `S` and the type constraint store `TY`.
+;Inside the  `make-type-constraint` function,  `u` is resolved  using the `walk`
+;function,  and the resulting value is  checked against the constraint predicate
+;using the `pred`  function.  If  the  value  satisfies  the constraint,  a unit
+;containing the unchanged state `st` is returned.  If the value does not satisfy
+;the constraint,  `mzero`  is returned,  indicating that the  conjunction is not
+;satisfiable.
+;Overall, the `make-type-constraint` function is used to define type constraints
+;for logical variables and check if those constraints are satisfied in the given
+;state.
+(defun make-type-constraint (tag pred)
+  (lambda (u)
+    (lambda (st)
+      (let ((S (S-of st)))
+        (let ((u (walk u S)))
+          (cond ((lvar? u)
+                 (let ((t/x (make-type-constraint/x u tag pred st)))
+                    (if t/x (unit t/x)
+                            mzero)))
+                ((pair? u) mzero)
+                (T
+                  (cond
+                    ((funcall pred u) (unit st))
+                    (T mzero)))))))))
 
 ;The `symbolo` function  is  used  to  create  a  type  constraint for a logical
 ;variable `u` that indicates that `u` must be a symbol.  It is implemented using
@@ -796,11 +780,24 @@
 ;(runno 1 (q) (fresh (x)(== q x)(== x 3) (symbolo q)))
 ;(runno 1 (q) (fresh (x)(== q 3)(numbero x) (numbero q)))
 ;(runno 1 (q) (fresh (x)(== q 3)(== x 3) (numbero x) (numbero q)))
-;(runno 1 (q) (fresh (x y)(== `(,x 9) `(8 ,y))(== q `(,x ,y))(symbolo y)))
+;(runno 1 (q) (fresh (x y) (=/= '(cat dog) `(,x ,y)) (numbero x)(== q x)))
+;(runno 1 (q) (fresh (x y)(=/= `(,x 9) `(8 ,y))(== q `(,x ,y))(symbolo y))) ;NO!
+;(runno 1 (q) (fresh (x y)(=/= `(,x 9) `(8 ,y))(== q `(,x ,y))(== y 7)(numbero y))) ;NO!
+;(runno 1 (q) (fresh (x y)(=/= `(,x 9) `(8 ,y))(symbolo y)(== q `(,x ,y)))) ;SI!
+;(runno 1 (q) (fresh (x y)(symbolo y) (== q `(,x ,y)) (=/= `(,x 9) `(8 ,y)))) ;SI!
+;(runno 1 (q) (fresh (x y)(numbero y) (== q `(,x ,y)) (=/= `(,x 9) `(8 ,y)))) ;SI!
+;(run 1 (q) (fresh (x y)(=/= `(,x 9) `(8 ,y))(symbolo y)(== q `(,x ,y)))) ;SI!
+;(runno 1 (q) (fresh (x y)(=/= `(,x 9) `(8 ,y))(symbolo y)(== q x))) ;SI!
+;(runno 1 (q) (fresh (x y)(=/= `(,x 9) `(8 ,y))(== q x))) ;SI!
+;(runno 1 (q) (fresh (x) (== x 1)(symbolo x) (=/= q x)))
+;(runno 1 (q) (fresh (x) (== x 1)(numbero x) (=/= q x)))
+;(runno 1 (q) (fresh (x)(numbero x) (== x 1)))
+;(runno 1 (q) (fresh (x y)(symbolo y) (=/= `(,x 9) `(8 ,y)))) ;SI!
+;(runno 1 (q) (fresh (x y)(numbero y) (=/= `(,x 9) `(8 ,y)))) ;SI!
 ;(runno 1 (q p)(=/= p 3) (=/= q 9)(symbolo q))
 ;(runno 1 (q p)(=/= p 3) (=/= q 9)(symbolo q)(== q 2))
 ;(runno 1 (q p)(=/= q 9)(=/= p 8)(symbolo q))
-;(runno 1 (q p)(=/= `(,p ,q) '(8 9)) (symbolo q))
+;(runno 1 (q p)(=/= `(,p . ,q) `(8 . 9))(== p 8) (symbolo q))
 ;(runno 1 (q d) (=/= q 8) (symbolo q) (== d 9))
 ;(runno 1 (q d) (symbolo q)(=/= q 8) (== d 9))
 ;(runno 1 (q) (fresh (x y)(symbolo y)(== `(,x 9) `(8 ,y))(== q `(,x ,y))))
@@ -821,9 +818,9 @@
               ;(numbero x)
               ;(numbero w) (== '(8 cat) `(,x ,y))))
 ;(runno 1 (q) (fresh (x y w z)
-            ;(numbero y)
-            ;(numbero x)
-            ;(numbero w) (== '(8 cat) `(,x ,y))))
+             ;(numbero y)
+             ;(numbero x)
+             ;(numbero w) (== '(8 cat) `(,x ,y))))
 ;(runno 1 (q) (numbero q))
 ;(runno 1 (q) (numbero q) (== 5 q))
 ;(runno 1 (q) (== 5 q) (numbero q))
@@ -840,66 +837,84 @@
 ;(runno 1 (q) (=/= 'y q) (numbero q))
 ;(runno 1 (q) (numbero q) (=/= `(1 . 2) q))
 ;(runno 1 (q) (numbero q) (=/= 5 q))
-;;(runno 1 (q y) (=/= y 9)(symbolo y))
-;;(runno 1 (q)
- ;;(fresh (x y)
-   ;;(numbero x)
-   ;;(numbero y)
-   ;;(== `(,x ,y) q)))
-;;(runno 1 (q)
- ;;(fresh (x y)
-   ;;(== `(,x ,y) q)
-   ;;(numbero x)
-   ;;(numbero y)))
-;;(run 1 (q)
- ;;(fresh (x y)
-   ;;(== `(,x ,y) q)
-   ;;(numbero x)
-   ;;(numbero x)))
-;;(runno 1 (q)
- ;;(fresh (x y)
-   ;;(numbero x)
-   ;;(numbero x)
-   ;;(== `(,x ,y) q)))
-;;(runno 1 (q)
- ;;(fresh (x y)
-   ;;(numbero x)
-   ;;(== `(,x ,y) q)
-   ;;(numbero x)))
-;;(runno 1 (q)
- ;;(fresh (x y)
-   ;;(numbero x)
-   ;;(numbero x)
-   ;;(== `(,x ,y) q)))
-;;(runno 1 (q)
-    ;;(fresh (w x y z)
-      ;;(=/= `(,w . ,x) `(,y . ,z))
-      ;;(numbero w)
-      ;;(numbero z)))
-;;(runno 1 (q)
-    ;;(fresh (w x y z)
-      ;;(=/= `(,w . ,x) `(,y . ,z))
-      ;;(numbero w)
-      ;;(numbero z)
-      ;;(== `(,w ,x ,y ,z) q)))
-;;(run 1 (q)
- ;;(fresh (x y z a b)
-   ;;(numbero x)
-   ;;(numbero y)
-   ;;(numbero z)
-   ;;(numbero a)
-   ;;(numbero b)
-   ;;(== `(,y ,z ,x ,b) `(,z ,x ,y ,a))
-   ;;(== q `(,x ,y ,z ,a ,b))))
-;;(run 1 (q)
- ;;(fresh (x y z a b)
-   ;;(== q `(,x ,y ,z ,a ,b))
-   ;;(== `(,y ,z ,x ,b) `(,z ,x ,y ,a))
-   ;;(numbero x)
-   ;;(numbero a)))
-;;(runno 1 (q) (fresh (x)(== q 3)(== x 3) (numbero x) (symbolo q)))
-;;(runno 1 (q) (fresh (x)(== q 3) (numbero x) (numbero q)(== x 9)))
-;;(runno 1 (q) (fresh (x)(== q 3) (numbero q)))
+;(runno 1 (q) (=/= q 9)(symbolo q))
+;(runno 1 (q) (fresh (a) (=/= a 'cat) (numbero a)))
+;(runno 1 (q) (fresh (a) (=/= a 'cat) (symbolo a)))
+;(runno 1 (q) (fresh (x y) (=/= `(cat dog) `(,x ,y)) (numbero x)))
+;(runno 1 (q x) (=/= `(cat dog) `(,x ,q)))
+;(runno 1 (q x) (=/= `(cat dog) `(,x ,q)) (numbero x))
+;(runno 1 (q x) (=/= `(,x ,q) `(cat dog)) (numbero q))
+;(runno 1 (q p)(=/= `(,p  ,q) '(8 9)))
+;(runno 1 (q p)(=/= p 8)(=/= q 9)(symbolo q))
+;(runno 1 (q x)(=/= `(,x  ,q) '(8 9))(symbolo q))
+;(runno 1 (q x)(=/= `(,x  ,q) '(8 9))(symbolo x))
+;(runno 2 (q)(fresh (x y) (=/= `(,x  ,y) '(8 9))(=/= q 21)))
+;(runno 1 (q)(fresh (x y) (=/= `(,x  ,y) '(8 9))(symbolo y)))
+;(runno 1 (q)(fresh (x y) (=/= `(,x  ,y) '(8 9))(symbolo x)))
+;(runno 1 (q)(fresh (x y) (=/= `(,y  ,x) '(8 9))(symbolo x)))
+;(run 1 (q)(fresh (x y) (=/= `(,x  ,y) '(8 9))(=/= y 9)(== x 8)(== q `(,x ,y))))
+;(runno 1 (q x) (=/= `(,x 9) `(cat ,q)) (numbero q))
+;(runno 1 (q x) (=/= `(,x 9) `(cat ,q)) (== q 9))
+;(runno 1 (q x) (== `(,x 9) `(cat ,q)))
+;(runno 1 (q)
+ ;(fresh (x y)
+   ;(numbero x)
+   ;(numbero y)
+   ;(== `(,x ,y) q)))
+;(runno 1 (q)
+ ;(fresh (x y)
+   ;(== `(,x ,y) q)
+   ;(numbero x)
+   ;(numbero y)))
+;(run 1 (q)
+ ;(fresh (x y)
+   ;(== `(,x ,y) q)
+   ;(numbero x)
+   ;(numbero x)))
+;(runno 1 (q)
+ ;(fresh (x y)
+   ;(numbero x)
+   ;(numbero x)
+   ;(== `(,x ,y) q)))
+;(runno 1 (q)
+ ;(fresh (x y)
+   ;(numbero x)
+   ;(== `(,x ,y) q)
+   ;(numbero x)))
+;(runno 1 (q)
+ ;(fresh (x y)
+   ;(numbero x)
+   ;(numbero x)
+   ;(== `(,x ,y) q)))
+;(runno 1 (q)
+    ;(fresh (w x y z)
+      ;(=/= `(,w . ,x) `(,y . ,z))
+      ;(numbero w)
+      ;(numbero z)))
+;(runno 1 (q)
+    ;(fresh (w x y z)
+      ;(=/= `(,w . ,x) `(,y . ,z))
+      ;(numbero w)
+      ;(numbero z)
+      ;(== `(,w ,x ,y ,z) q)))
+;(run 1 (q)
+ ;(fresh (x y z a b)
+   ;(numbero x)
+   ;(numbero y)
+   ;(numbero z)
+   ;(numbero a)
+   ;(numbero b)
+   ;(== `(,y ,z ,x ,b) `(,z ,x ,y ,a))
+   ;(== q `(,x ,y ,z ,a ,b))))
+;(run 1 (q)
+ ;(fresh (x y z a b)
+   ;(== q `(,x ,y ,z ,a ,b))
+   ;(== `(,y ,z ,x ,b) `(,z ,x ,y ,a))
+   ;(numbero x)
+   ;(numbero a)))
+;(runno 1 (q) (fresh (x)(== q 3)(== x 3) (numbero x) (symbolo q)))
+;(runno 1 (q) (fresh (x)(== q 3) (numbero x) (numbero q)(== x 9)))
+;(runno 1 (q) (fresh (x)(== q 3) (numbero q)))
 ;(run 1 (q) (fresh (x) (numbero x) (symbolo q)))
 ;(reform-t '((#(1) sym . symbolp)) '((#(1) . 3) (#(0) .#(1))))
 ;(member '(err) *)
@@ -925,19 +940,6 @@
 ;(runno 2 (q) (fresh (x) (== q x) (symbolo q) (== x 9)))
 ;(reform-t '((#(2) sym . symbolp)) '((#(2) . 5) (#(1) . #(2)) (#(0) .#(1))))
 ;(runno 1 (q) (fresh (x) (== q x) (symbolo q) (== 5 x)))
-;(defun reform-T (TY S)
- ;(cond ((null? TY) '())
-      ;((let ((rt (reform-T (cdr TY) S)))
-         ;(funcall (lambda (T0)
-             ;(let ((u (walk (car (car TY)) S))
-                 ;(tag (tag-of (car TY)))
-                 ;(pred (pred-of (car TY))))
-              ;(cond ((lvar? u)
-                   ;(cond ((let ((et (ext-TY u tag pred T0)))
-                           ;(funcall (lambda (T+) (append T+ T0)) et)))
-                        ;(T "erri0")))
-                  ;(T (when (not (and (funcall pred  u) T0)) nil))))) rt)))
-      ;(T 'mnt)))
 
 (defun reform-T (TY S)
   (cond ((null? TY) '())

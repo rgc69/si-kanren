@@ -2,6 +2,7 @@
 
 (defun make-st (S/C D TY A)
   `(,S/C ,D ,TY ,A))
+
 (defun  empty-state () (make-st   '(() . 0) '() '() '()))
 
 (defun S/C-of (s/c/d)
@@ -21,8 +22,6 @@
 
 (defun a-of (s/c/d)
   (cadddr s/c/d))
-
-;(defparameter empty-state '((() . 0) () () ()))
 
 ;The `pull`  function is  used to  repeatedly apply  the stream  until it  is no
 ;longer a function.  This is done by calling the function and passing its result
@@ -547,6 +546,11 @@
 
 ;Overall,  the `normalize-conde` function  ensures that the goal clause  is in a
 ;normalized form that can be easily processed by the reifier.
+;(defun normalize-conde (s/c/d)
+  ;(if (null s/c/d)
+      ;'()
+      ;(cons (make-st (caar s/c/d) (normalize s/c/d) (caddar s/c/d) (a-of s/c/d))
+            ;(normalize-conde (cdr s/c/d)))))
 (defun normalize-conde (s/c/d)
   (if (null s/c/d)
       '()
