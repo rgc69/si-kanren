@@ -495,16 +495,16 @@
 ;are kept in the final `d` list, reducing redundancy and optimizing the execution
 ;of the `fresh` macro.
 (defun normalize-fresh (s/c/d)
-  (labels ((norm (l d)
-             (if (null d)
-                 '()
-              (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
-                  (norm l (cdr d))
-                  (if (unused (car d) l)
+      (labels ((norm (l d)
+                 (if (null d)
+                     '()
+                  (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                       (norm l (cdr d))
-                      (cons (car d)(norm l (cdr d))))))))
-    (let ((d^ (flat-d (remove-subsumed (cadar s/c/d)))))
-     (norm s/c/d d^))))
+                      (if (unused (car d) l)
+                          (norm l (cdr d))
+                          (cons (car d)(norm l (cdr d))))))))
+        (let ((d^ (flat-d (remove-subsumed (cadar s/c/d)))))
+         (norm s/c/d d^))))
 
 ;;;;;;;;;;;;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;;;;;;;;;;;;;
 
