@@ -113,15 +113,28 @@
           (a (a-of s/c/d)))
         (funcall (funcall f (lvar c)) `((,(caar s/c/d) . ,(+ c 1)) ,d ,ty ,a)))))
 
-;(defun == (u v)
-  ;(lambda (s/c/d)
-    ;(let ((s^ (unify u v (s-of s/c/d))))
-      ;(if (not (equal s^ '(())))
-         ;(normalize-disequality-store
-          ;(unit(make-st (cons s^ (c-of s/c/d))(d-of s/c/d)(ty-of s/c/d)(a-of s/c/d))))
-         ;mzero))))
-
-(defun == (u v) (lambda (st) (==-verify (unify u v (S-of st)) st)))
+(defun == (u v)
+  (lambda (s/c/d)
+    (let ((s^ (unify u v (s-of s/c/d))))
+      (if (not (equal s^ '(())))
+          (let ((nds (normalize-disequality-store s^ (d-of s/c/d))))
+            (if (member 'err nds)
+                nil
+                (let ((rt (reform-T (ty-of s/c/d) s^)))
+                     (funcall (lambda (TY)
+                                (cond ((member '(err) TY :test #'equal ) mzero)
+                                      ((member nil TY)
+                                       (unit (make-st
+                                              (cons s^ (c-of s/c/d))
+                                              (rem-subsumed-D<T TY (remove nil nds))
+                                              (remove nil rt)
+                                              (a-of s/c/d))))
+                                      (T (unit (make-st
+                                                     (cons s^ (c-of s/c/d))
+                                                     (rem-subsumed-D<T TY (remove nil nds))
+                                                     TY
+                                                     (a-of s/c/d)))))) rt))))
+          mzero))))
 
 ;The  `mplus`  function  is  used  to  concatenate  two  streams.  It  takes two
 ;arguments,  `$1` and `$2`,  and returns a stream that contains all the elements
@@ -249,23 +262,6 @@
             '()
              d)))))
 
-;The `(=/=)` function in  `si-kanren` is used to specify that  two terms are not
-;equal.  It takes two terms `u` and `v` as arguments and returns a function that
-;takes  a  substitution  `s/c/d`  as  an  argument.  The  function  applies  the
-;`disequality` function to `u`,  `v`,  and the  substitution `s/c/d` to check if
-;`u` and `v` are not equal in the given substitution. If they are not equal, the
-;function returns a `unit` containing the modified substitution `s/c/d`. If they
-;are equal, the function returns `mzero`, indicating that the conjunction is not
-;satisfiable.
-;(defun =/= (u v)
-  ;(lambda (s/c/d)
-    ;(let ((d^ (disequality u v (s-of s/c/d))))
-      ;(if d^
-          ;(if (equal d^ '(()))
-              ;(unit s/c/d)
-              ;(unit (make-st (s/c-of s/c/d) (rem-subsumed-d<t (ty-of s/c/d)(cons d^ (d-of s/c/d))) (ty-of s/c/d)(a-of s/c/d))))
-       ;mzero))))
-
 (defun =/= (u v)
   (lambda (s/c/d)
     (let ((d^ (disequality u v (s-of s/c/d))))
@@ -316,8 +312,9 @@
 ;(normalize-fresh (runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)))))
 ;(normalize (runno 1 (q)(fresh (x y)(== q x)(== x q) (=/= `(,x . 7) `(5 . ,y)))))
 ;(runno 1 (q)(fresh (x y)(== q x)(numbero y) (== x q) (=/= `(,x . 7) `(5 . ,y))))
-;(runno 1 (q)(fresh (x y)(== q x)(numbero x) (== x q) (=/= `(,x . 7) `(5 . ,y))))
-;(runno 1 (q)(fresh (x y)(numbero x)(== x q)(=/= y 8) (=/= x 'cat)))
+;(runno 1 (q)(fresh (x y)(== q x)(numbero x) (== x q) (=/= `(,x . 7) `(5 . ,y))(== x 5)))
+;(runno 1 (q)(fresh (x y)(numbero x)(== x q)(=/= y 8) (=/= x 9)))
+;(runno 1 (q)(fresh (x y)(numbero x)(=/= y 8) (=/= x 9)(== q x)))
 ;(normalize-conde (runno 1 (q)(fresh (x y)(numbero x) (=/= `(,x . 7) `(cat . ,y))(== x q))))
 ;(caddar **)
 ;(ty-of (car ***))
@@ -329,23 +326,23 @@
 ;(runno 1 (q)(fresh (x y) (=/= `(,x . 7) `(5 . ,y)) (== q `(,x ,y))))
 ;(run* (q) (=/= 4 q)(=/= 3 q))
 ;(runno 1 (q)
-  ;(fresh (x y)
-    ;(== `(,x ,y) q)
-    ;(=/= `(,x ,y) `(5 6))
-    ;(=/= x 5)))
+ ;(fresh (x y)
+   ;(== `(,x ,y) q)
+   ;(=/= `(,x ,y) `(5 6))
+   ;(=/= x 5)))
 ;(load "~/test-suite.lisp")
 ;(run* (q) (rembero 'a '(a b a c) q))
 ;(run 1 (q)
-  ;(=/= q '())
-  ;(=/= q '(foo))
-  ;(=/= q 5))
+ ;(=/= q '())
+ ;(=/= q '(foo))
+ ;(=/= q 5))
 ;(runno 10 (q) (rembero 'a '(a b c) '(a b c)))
 ;(run 1 (q) (=/= q nil))
 ;(run 1 (a b c d)
-     ;(=/= (cons a c)
-          ;(cons b d))
-     ;(== c '(1 . 2))
-     ;(== d '(1 . 3)))
+    ;(=/= (cons a c)
+         ;(cons b d))
+    ;(== c '(1 . 2))
+    ;(== d '(1 . 3)))
 ;(run 1 (q)
  ;(fresh (x y)
    ;(== `(,x ,y) q)
@@ -376,31 +373,21 @@
 ;(funcall * **)
 ;(filter (lambda (l) (not (null? l)))(cdr **))
 ;(cadr ***)
-;The `normalize-disequality-store` function  takes a store `s/c/d`  as input and
-;applies the `disequality` function to each  pair of variables in the store.  It
-;filters  out any  empty results  and returns  a new  store with  the normalized
-;disequalities.  In  this  code,  the  `mapm`  function  is  used  to  apply the
-;`disequality` function  to each pair  of variables in  the store.  The `filter`
-;function is  used to remove any  empty results.  The filtered  results are then
-;combined with  the original  store to create  a new  store with  the normalized
-;disequalities.  The `normalize-disequality-store` function is  part of the type
-;constraint section of the code and is used to handle constraints related to the
-;equality and disequality of variables in the Kanren system.
-;(defun normalize-disequality-store (s/c/d)
- ;(bind (mapm (lambda (es)
-               ;(let ((d^ (disequality (mapcar #'car es)
-                                      ;(mapcar #'cdr es)
-                                      ;(s-of s/c/d))))
-                  ;(if d^
-                      ;(if (equal d^ '(()))
-                          ;'(())
-                          ;d^)
-                      ;mzero)))
-             ;(filter (lambda (l) (not (null? l)))
-                     ;(cadr s/c/d)))
-       ;(lambda (d)
-         ;(unit (make-st  (s/c-of s/c/d) d (ty-of s/c/d) (a-of s/c/d))))))
 
+(defun normalize-disequality-store (s ds)
+ (bind (mapm (lambda (es)
+               (let ((d^ (disequality (mapcar #'car es)
+                                      (mapcar #'cdr es)
+                                      s)))
+                  (if d^
+                      (if (equal d^ '(()))
+                          '(())
+                          (unit d^))
+                      '(err))))
+             (filter (lambda (l) (not (null? l)))
+                     ds))
+       (lambda (d)
+         d)))
 ;;;;;;;;;;;;;;;;;;;;;;;  ALTERNATIVE NORMALIZATION   ;;;;;;;;;;;;;;;;;;;;;;;
 
 ;(unify   (lvar 2)  4 '((#(0) . #(1)) (#(2) . 3)(#(9) . 8)))
@@ -419,7 +406,7 @@
 ;(reform-d '(((#(2) . 3))) '() '((#(0) . #(1)) (#(2) . 3)))
 ;(reform-d '(((#(3) . 7))) '() '((#(0) . #(1)) (#(2) . 5) (#(3) . 7)))
 
-;(runno 1 (q) (fresh (x y) (=/= x 5) (=/= y 9) (== q 3)))
+;(run 1 (q) (fresh (x y) (=/= x 5) (=/= y 9) (== q 3)))
 ;(reform-d '(((#(2) . 3)) ((#(4) . 7))) '() '((#(0) . #(1)) (#(2) . 3)))
 ;(unify* '((#(2) . 3) (#(4) . 7))  '((#(0) . #(1)) (#(2) . 3)))
 ;(unify* '((#(3) . 4) (#(4) . 7))  '((#(0) . #(1)) (#(2) . 3)))
@@ -507,53 +494,48 @@
                      ;mzero)))
            ;'((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)((#(5) . 3) (#(3) . cat))))
    ;(lambda (d) (cons s^ (cons (filter (lambda (l) (not (null? l)))d) nil)))))
+;(normalize-disequality-store '((((#(2) . 5)(#(3) . cat) (#(1) . #(0)))  . 8)
+                               ;((#(2) . 9)(98 . #(6))) ((#(4) . 7))))
+;(normalize-disequality-store '((((#(2) . 5)(#(3) . cat) (#(1) . #(0)))  . 8)
+                               ;((#(4) . 9)(#(6) . 98)) ((#(4) . 7))))
 ;(normalize-disequality-store '((((#(2) . 10)(#(0) . #(2))(#(3) . cat)(#(5) . 3) (#(1) . #(0)))  . 8)
-                    ;(((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)((#(5) . 3) (#(3) . cat))))
-                    ;() ()))
+                               ;(((#(2) . 7)) ((#(5) . 11))((#(4) . 10))((#(2) . 9))((#(5) . 4)))))
 
-;(normalize-disequality-store '((((#(2) . 10)(#(0) . #(2))(#(3) . cat)(#(5) . 3) (#(1) . #(0)))  . 8)
-                    ;(((#(2) . 7) (#(5) . 11)(#(4) . 10)(#(2) . 9)))
-                    ;() ()))
-(defun unify* (d S)
-  (cond ((null? d) S)
-        ((let ((s^ (unify (caar d) (cdar d) S)))
-           (when (not (equal s^ '(())))
-            (funcall (lambda (S) (unify* (cdr d) S)) s^))))
-        (T nil)))
+;(normalize-disequality-store '((((#(2) . 10)(#(0) . #(2))(#(3) . cat) (#(1) . #(0)))  . 8)
+                               ;(((#(2) . 7)) ((#(5) . 11)(#(6) . 54)) ((#(4) . 10))((#(2) . 9))
+                                ;() ())))
+;(normalize-disequality-store '((#(5) . 11)(#(0) . #(2))(#(3) . cat)(#(4) . 32)(#(1) . #(0)))
+                    ;'(((#(2) . 10)(#(5) . 11))((#(4) . 10))((#(2) . 9))))
+;(normalize-disequality-store '((#(2) . 10)(#(0) . #(2))(#(3) . cat)(#(1) . #(0)))
+                    ;'(((#(2) . 10)(#(5) . 11))((#(4) . 10))((#(2) . 9))))
+;(normalize-disequality-store '((#(2) . 4)(#(0) . #(1)))
+                   ;'(((#(2) . 4))))
 
-(defun reform-D (D D^ S)
-  (cond ((null? D) D^)
-        ((let ((d* (unify* (car D) S)))
-           (if (equal d* nil)
-               nil
-               (funcall (lambda (S^)
-                          (if (equalp S S^)
-                              "err"
-                              (let ((d+ (subtract-s S^ S)))
-                                (reform-D (cdr D) (cons d+ D^) S)))) d*))))
-        (T (reform-D (cdr D) D^ S))))
 
-(defun ==-verify (S+ st)
-  (cond ((equal S+ '(())) mzero)
-        ((equalp (S-of st) S+) (unit st))
-        ((let ((rd (reform-D (d-of st) '() S+)))
-            (funcall (lambda (D)
-                       (cond ((equal rd "err") nil)
-                             ((let ((rt (reform-T (ty-of st) S+)))
-                                (funcall (lambda (TY)
-                                           (cond ((member '(err) TY :test #'equal ) mzero)
-                                                 ((member nil TY)
-                                                  (unit (make-st
-                                                         (cons S+ (C-of st))
-                                                         (rem-subsumed-D<T TY D)
-                                                         (remove nil rt)
-                                                         (a-of st))))
-                                                 (T (unit (make-st
-                                                                (cons S+ (C-of st))
-                                                                (rem-subsumed-D<T TY D)
-                                                                TY
-                                                                (a-of st)))))) rt))))) rd)))
-       (t mzero)))
+;(member 'err '(err))
+;(runno 1 (q) (=/= 5 q)
+      ;(=/= 6 q)
+      ;(== q 5))
+;(normalize-disequality-store '((#(2) . 3)(#(0) . #(1)))
+                  ;'(((#(2) . 4) (#(1) . 3)) ((#(8) . 42))))
+;(runno 1 (q) (== q 3) (=/= q 3))
+;(runno 1 (q)
+ ;(=/= 3 q)
+ ;(== q 3))
+;(run 1 (q)
+ ;(fresh (x y z)
+   ;(=/= x y)
+   ;(== x `(0 ,z 1))
+   ;(== y `(0 1 1))))
+;(runno 1 (q) (fresh (x y) (== x y)))
+;(runno 1 (q) (fresh (x y) (== x y) (=/= y 5) (== q x)))
+;(run 1 (q) (fresh (x y) (== x y) (=/= y 5) (== q x)))
+;(runno 1 (q) (fresh (x y) (=/= `(,x 9) `(8 ,y))))
+;(run  1 (q) (fresh (x y) (=/= `(,x 9) `(8 ,y)) (== q `(,x ,y))))
+;(runno  1 (q) (fresh (x y) (=/= `(,x 9) `(8 ,y)) (== q `(,x ,y)) (== y 9)))
+;(run  1 (q) (fresh (x y) (=/= `(,x 9) `(8 ,y)) (== q `(,x ,y)) (== y 9)))
+;(run  1 (q) (fresh (x y) (=/= `(,x 9) `(8 ,y)) (== q `(,x ,y)) (== y 10)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;   Type constraint     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -643,53 +625,26 @@
 (defun rem-subsumed-D<T (TY D)
   (delete-if (subsumed-d-pr? TY) D))
 
-;The `make-type-constraint/x` function takes four arguments: `u`, `tag`, `pred`,
-;and `st`.
-;It  first extends  the type  constraint  store  `TY`  with  the  new constraint
-;represented by `u`, `tag`, and `pred` using the `ext-TY` function.
-;Then,  it calls a lambda function that takes `T+` as its argument.  Inside this
-;lambda function, it checks three conditions:
-;1. If `T+` is an empty list, it returns the original state `st` since there are
-;no new constraints to add.
-;2.  If `T+` is equal to the string "err",  it returns an empty list, indicating
-;that the new constraint is conflicting with existing constraints.
-;3.  Otherwise,  it creates a new state  with the extended type constraint store
-;`TY-next` that  includes the new  constraint and the  existing constraints.  It
-;also removes any subsumed constraints from  the disequality store `D` using the
-;`rem-subsumed-D<T` function.
-;Finally,  it calls the  lambda function with the extended  type constraint `ty`
-;and returns the result.
-;(defun make-type-constraint/x (u tag pred st)
-     ;(let ((ty (ext-TY u tag pred (TY-OF st))))
-          ;(funcall (lambda (T+)
-                     ;(cond ((equal T+ "same") st)
-                           ;((equal T+ "err") '())
-                           ;(T (let ((TY-next (append T+ (TY-of st)))
-                                    ;(D (rem-subsumed-d<t T+ (D-of st))))
-                                ;(make-st (S/C-of st) D TY-next (a-of st)))))) ty)))
-
-
 (defun make-type-constraint/x (u tag pred st)
      (let ((ty (ext-TY u tag pred (ty-of st))))
           (funcall (lambda (T+)
                      (cond ((equal T+ "same") st)
                            ((equal T+ "err") '())
-                           (T (let* ((TY-next (append T+ (ty-of st)))
-                                     (rd (reform-d (d-of st) '() (s-of st)))
-                                     (rt (reform-T TY-next (s-of st))))
+                           (T (let ((TY-next (append T+ (ty-of st))))
+                                (let ((rt (reform-T TY-next (s-of st))))
                                    (funcall (lambda (TY)
                                               (cond ((member '(err) TY :test #'equal ) mzero)
                                                     ((member nil TY)
                                                      (make-st
                                                        (s/c-of st)
-                                                       (rem-subsumed-D<T TY rd)
-                                                       (remove nil TY)
+                                                       (rem-subsumed-D<T TY (d-of st))
+                                                       (remove nil rt)
                                                        '(pippo)))
                                                     (T  (make-st
                                                                (s/c-of st)
-                                                               (rem-subsumed-d<t TY rd)
+                                                               (rem-subsumed-d<t TY (d-of st))
                                                                TY
-                                                               '(topo))))) rt))))) ty)))
+                                                               '(topo))))) rt)))))) ty)))
 ;The `make-type-constraint` function  is used to create a  type constraint for a
 ;logical variable. It takes four arguments: `tag`, `pred`, `u`, and `st`.
 ;The `tag` argument represents the tag of the type constraint, which can be used
@@ -814,13 +769,13 @@
 ;(reform-t '((#(3) num . numberp)(#(2) num . numberp))'((#(1) #(2) #(3)) (#(3) . 9) (#(0) #(1))))
 ;(reform-t '((#(2) num . numberp)(#(3) num . numberp))'((#(1) #(2) #(3)) (#(3) . 9) (#(0) #(1))))
 ;(runno 1 (q) (fresh (x y w z)
-              ;(symbolo y)
-              ;(numbero x)
-              ;(numbero w) (== '(8 cat) `(,x ,y))))
-;(runno 1 (q) (fresh (x y w z)
-             ;(numbero y)
-             ;(numbero x)
-             ;(numbero w) (== '(8 cat) `(,x ,y))))
+            ;(symbolo y)
+            ;(numbero x)
+            ;(numbero w) (== '(8 cat) `(,x ,y))))
+;(runno 1 (q) (fresh (x y w z))
+           ;(numbero y)
+           ;(numbero x)
+           ;(numbero w) (== '(8 cat) `(,x ,y)))
 ;(runno 1 (q) (numbero q))
 ;(runno 1 (q) (numbero q) (== 5 q))
 ;(runno 1 (q) (== 5 q) (numbero q))
@@ -837,25 +792,19 @@
 ;(runno 1 (q) (=/= 'y q) (numbero q))
 ;(runno 1 (q) (numbero q) (=/= `(1 . 2) q))
 ;(runno 1 (q) (numbero q) (=/= 5 q))
+;(runno 1 (q) (numbero q) (=/= 5 q)(symbolo q))
 ;(runno 1 (q) (=/= q 9)(symbolo q))
 ;(runno 1 (q) (fresh (a) (=/= a 'cat) (numbero a)))
 ;(runno 1 (q) (fresh (a) (=/= a 'cat) (symbolo a)))
 ;(runno 1 (q) (fresh (x y) (=/= `(cat dog) `(,x ,y)) (numbero x)))
+;(runno 1 (q) (fresh (x y) (=/= `(cat dog) `(,x ,y))(== y 'dog) (symbolo y)))
+;(runno 1 (q) (fresh (x y)(numbero y) (=/= `(cat dog) `(,x ,y))))
 ;(runno 1 (q x) (=/= `(cat dog) `(,x ,q)))
 ;(runno 1 (q x) (=/= `(cat dog) `(,x ,q)) (numbero x))
-;(runno 1 (q x) (=/= `(,x ,q) `(cat dog)) (numbero q))
+;(runno 1 (q x) (=/= `(,x ,q) `(cat dog)) (numbero x))
 ;(runno 1 (q p)(=/= `(,p  ,q) '(8 9)))
 ;(runno 1 (q p)(=/= p 8)(=/= q 9)(symbolo q))
 ;(runno 1 (q x)(=/= `(,x  ,q) '(8 9))(symbolo q))
-;(runno 1 (q x)(=/= `(,x  ,q) '(8 9))(symbolo x))
-;(runno 2 (q)(fresh (x y) (=/= `(,x  ,y) '(8 9))(=/= q 21)))
-;(runno 1 (q)(fresh (x y) (=/= `(,x  ,y) '(8 9))(symbolo y)))
-;(runno 1 (q)(fresh (x y) (=/= `(,x  ,y) '(8 9))(symbolo x)))
-;(runno 1 (q)(fresh (x y) (=/= `(,y  ,x) '(8 9))(symbolo x)))
-;(run 1 (q)(fresh (x y) (=/= `(,x  ,y) '(8 9))(=/= y 9)(== x 8)(== q `(,x ,y))))
-;(runno 1 (q x) (=/= `(,x 9) `(cat ,q)) (numbero q))
-;(runno 1 (q x) (=/= `(,x 9) `(cat ,q)) (== q 9))
-;(runno 1 (q x) (== `(,x 9) `(cat ,q)))
 ;(runno 1 (q)
  ;(fresh (x y)
    ;(numbero x)
