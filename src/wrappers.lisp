@@ -523,6 +523,48 @@
    ((listp (cdr v))(lvar-or-atom (cadr v)(walk* (cadr v) (caaar l))))
    (T (lvar-or-atom (cdr v) (walk* (cdr v) (caaar l))))))
 
+;;;;;;;;;;;;;;;;;;;;;;;; Normalization of the Type Store  ;;;;;;;;;;;;;;;;;;;;;
+
+(defun normalize-TY (s/c/d)
+      (labels ((norm (l ty)
+                 (if (null ty)
+                     '()
+                     (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar ty) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
+                         (norm l (cdr ty))
+                         ;(if (unused (car ty) l)
+                             ;(norm l (cdr ty))
+                         (cons (car ty)(norm l (cdr ty)))))))
+              (norm s/c/d (caddar s/c/d))))
+
+(defun drop-pred-T (TY) (mapcar (lambda (ty) (let ((x (car ty))
+                                                   (tag (tag-of ty)))
+                                                 `(,tag ,x))) TY))
+
+(defun partition* (A)
+  (cond ((null? A) '())
+        (T (part (car (car A)) A '() '()))))
+
+(defun part (tag A x* y*)
+  (cond ((null? A) (cons `(,tag . ,(mapcar #'car x*)) (partition* y*)))
+        ((tag=? (car (car A)) tag)
+         (let ((x (cdr (car A))))
+           (let ((x* (cond ((member x x*) x*)
+                           (T (cons x x*)))))
+             (part tag (cdr A) x* y*))))
+        (T (let ((y* (cons (car A) y*)))
+             (part tag (cdr A) x* y*)))))
+
+(defun coerce->l (v) (coerce v 'list))
+
+(defun coerce->v (l) (coerce l 'vector))
+
+(defun sort-part (pr)
+  (let ((tag (car pr))
+        (x* (mapcar #'coerce->v
+                    (mapcar #'unit
+                            (sort (apply 'concatenate 'list
+                                         (mapcar #'coerce->l (cdr pr))) #'<)))))
+    `(,tag . ,x*)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;  Normalize everything  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -546,13 +588,63 @@
 
 ;Overall,  the `normalize-conde` function  ensures that the goal clause  is in a
 ;normalized form that can be easily processed by the reifier.
-;(defun normalize-conde (s/c/d)
-  ;(if (null s/c/d)
-      ;'()
-      ;(cons (make-st (caar s/c/d) (normalize s/c/d) (caddar s/c/d) (a-of s/c/d))
-            ;(normalize-conde (cdr s/c/d)))))
 (defun normalize-conde (s/c/d)
   (if (null s/c/d)
       '()
-      (cons (cons (caar s/c/d) (cons (normalize s/c/d) ()))
+      (cons (make-st (caar s/c/d)
+                     (normalize s/c/d)
+                     (mapcar #'sort-part (partition* (drop-pred-t (normalize-ty s/c/d))))
+                     (a-of s/c/d))
             (normalize-conde (cdr s/c/d)))))
+
+;(defun normalize-conde (s/c/d)
+  ;(if (null s/c/d)
+      ;'()
+      ;(cons (cons (caar s/c/d) (cons (normalize s/c/d) ()))
+            ;(normalize-conde (cdr s/c/d)))))
+
+
+;(sort-part  '(num  #(4) #(2) #(3) #(6)))
+;(mapcar #'unit (cdr *))
+;(mapcar #'coerce->v *)
+;(coerce 2 'vector)
+;(coerce #(2) 'list)
+
+;(mapcar #'sort-part (partition* '((#(1) sym . symbolp)(#(4) num . numberp))))
+;(mapcar #'coerce->l '(#(4) #(1)))
+;(coerce '(2) 'vector)
+
+;;(defun prettify (v D TY r)
+ ;;(let ((D (sorter (mapcar sorter D)))
+       ;;(TY (sorter (mapcar sort-part (partition* TY)))))
+   ;;(cond ((and (null? D) (null? TY)) v)
+        ;;((null? D) `(,v . ,TY))
+        ;;((null? TY) `(,v (=/= . ,D)))
+        ;;(T `(,v (=/= . ,D) . ,TY)))))
+
+;;(mapcar (reify-var-state (lvar 0) '((((#(1) . 9) (#(0) . #(1))) . 2) () () ())))
+;(purify-t '((#(1) sym . symbolp)(#(2) num . numberp)) '(((((#(0) . #(1)))))))
+;(purify-t '((#(1) sym . symbolp)(#(4) num . numberp)) *)
+;(unused-in-ty  #(4) *)
+;(walk-queries 0 '(((((#(0) . #(1)))))))
+;(purify-t '((#(1) sym . symbolp)(#(2) num . numberp)) '((#(1) . cat)(#(2) . 9) (#(0) . #(1))))
+;(purify-t '((#(1) sym . symbolp)(#(2) num . numberp)) '((#(1) . cat)(#(2) . 9) (#(0) . #(1))))
+;(walk* (drop-pred-t (purify-t '((#(1) sym . symbolp)(#(2) num . numberp))
+                            ;'((#(0) . #(1)))))
+     ;'((#(0) . #(1))))
+;(walk-queries 0 *)
+;(walk  #(3) '((#(2) . 9)(#(1) . #(2)) (#(3) . #(1))))
+;(unused  '(#(3) . 9)  '((((#(2) . 9) (#(1) . #(2)) (#(4) . #(1))) . 9) () () ()))
+;(normalize-fresh  '((((#(2) . #(5)) (#(1) . #(2)) (#(3) . 5)) . 9) (((#(4) . 9))) () ()))
+;(normalize-conde(runno 1 (q) (fresh (x y) (=/= x 9)(== q y)(numbero x))))
+;(normalize-conde (runno 1 (q) (fresh (x y z p) (=/= x 9)(numbero z)(== q `(,x ,y ,z))(numbero x)(symbolo y))))
+;(caddar *)
+;(partition* *)
+;(normalize-conde (runno 1 (q) (fresh (x y) (=/= x y) (numbero x) (== x q))))
+;(normalize-conde (runno 2 (q) (fresh (x y) (conde ((== x y) (== x 5) (== q y) (numbero q)
+                                                  ;((== x 6) (=/= y x)(== q y)))))))
+;(normalize-conde (runno 2 (q) (fresh (x y) (conde ((== x y) (== x 5) (== q y) (numbero q))
+                                                 ;((== x 6) (=/= y x)(== q y)(symbolo y))))))
+;(normalize-conde (runno 1 (q) (fresh (x y z)(numbero z)(numbero x)(== q `(,x ,z ,y)) (numbero y))))
+;;(walk* * '((#(1) . cat)(#(2) . 9) (#(0) . #(1))))
+

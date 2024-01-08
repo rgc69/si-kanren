@@ -226,14 +226,14 @@
 ;`v`.  It then recursively calls `mapm` with `f` and the rest of `l`,  and binds
 ;the  result to  `vs`.  Finally,  it constructs  a unit  containing a  list that
 ;concatenates `v` and `vs`, and returns this unit.
-;(defun mapm (f l)
-  ;(if (null? l)
-      ;(unit '())
-      ;(bind (funcall f (car l))
-            ;(lambda (v)
-              ;(bind (mapm f (cdr l))
-                    ;(lambda (vs)
-                      ;(unit (cons v vs))))))))
+(defun mapm (f l)
+  (if (null? l)
+      (unit '())
+      (bind (funcall f (car l))
+            (lambda (v)
+              (bind (mapm f (cdr l))
+                    (lambda (vs)
+                      (unit (cons v vs))))))))
 
 ;The `subtract-s` function is used to subtract one substitution from another. It
 ;takes  two  substitutions  `s^`  and  `s`   as  arguments  and  returns  a  new
