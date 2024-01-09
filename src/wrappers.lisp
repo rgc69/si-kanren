@@ -115,19 +115,43 @@
 ;variable  in `s/c/d`  by generating  a new  name for  the variable  if it  is a
 ;logical variable, combining the reified states of its elements if it is a pair,
 ;or leaving it unchanged otherwise.
+;(defun reify-state/1st-var (s/c/d)
+  ;(labels (( o (ti)
+            ;(let ((v (walk* ti (caar s/c/d))))
+                ;(walk* v (reify-s v '())))))
+   ;(o (cons (lvar 0)
+        ;(if (and (not (equal (cdr s/c/d) '(())))
+                 ;(not (equal (cdr s/c/d) '())))
+            ;(if (or (cddr s/c/d)(cdadr s/c/d))
+                ;`(where . ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
+                                ;(cdr s/c/d)))
+                ;`(where . ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
+                                ;(cdr s/c/d))))
+            ;'())))))
+
 (defun reify-state/1st-var (s/c/d)
   (labels (( o (ti)
-            (let ((v (walk* ti (caar s/c/d))))
+            (let ((v (walk* ti (s-of s/c/d))))
                 (walk* v (reify-s v '())))))
    (o (cons (lvar 0)
-        (if (and (not (equal (cdr s/c/d) '(())))
-                 (not (equal (cdr s/c/d) '())))
-            (if (or (cddr s/c/d)(cdadr s/c/d))
-                `(where . ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
-                                (cdr s/c/d)))
-                `(where . ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
-                                (cdr s/c/d))))
-            '())))))
+        (cond
+             ((and (null? (d-of s/c/d)) (null? (ty-of s/c/d)))
+              nil)
+             ((null? (ty-of s/c/d))
+              (if (not (equal (cdar (d-of s/c/d)) nil))
+                  `(where  ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
+                               (cadr s/c/d)))
+                  `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
+                                 (cadr s/c/d)))))
+             ((null? (d-of s/c/d))
+              `(and ,(ty-of s/c/d)))
+             ((and (d-of s/c/d) (ty-of s/c/d))
+              (if (not (equal (cdar (d-of s/c/d)) nil))
+                 (cons `(where  ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
+                                  (cadr s/c/d))) `(and ,(ty-of s/c/d)))
+                 (cons `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
+                                  (cadr s/c/d))) `(and ,(ty-of s/c/d)))))
+             (T nil))))))
 
 ;The `mK-reify`  function is used  to reify the  state of  the variables  in the
 ;state-constraint pairs. Here is how the `mK-reify` function works:
@@ -149,11 +173,12 @@
 ;used to display the values of the variables in the state after running a goal.
 (defun mK-reify (s/c/d)
     (if (equal nil s/c/d)
-        nil
-     (if (cdr s/c/d)
-         (setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
-         (setq s/c/d (cons (remove nil (car s/c/d)) '()))))
+        nil)
+     ;(if (cdr s/c/d)
+         ;(setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
+         ;(setq s/c/d (cons (remove nil (car s/c/d)) '()))))
     (let ((S (map 'list #'reify-state/1st-var s/c/d)))
+      ;(let ((S (reify-state/1st-var (car s/c/d))))
        (if (cdr S)
            (format t "~{~a~%~^ ~}" S)
            (format t "~{~a~^ ~}" (car S))))
@@ -331,10 +356,11 @@
                          (t (format nil "bye!"))))))))
 
 
-;;;;;;;;;;;;;;;;;;;;    "Pars construens" of the reifier     ;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;    "Pars construens" of the Reifier     ;;;;;;;;;;;;;;;;;;;;
 
+;;;;;;;;;;;;;;;;;;;;   Normalization of the Disequality Store ;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;   Getting rid of constraints subsumed by others constraints  ;;;;;;;;
+  ;;;;;;;   Getting rid of constraints subsumed by others constraints  ;;;;;
 
 (defun eigenvalue (v)
   (and (not (subsumed v)) (not (lvar? (cdr v)))))
@@ -406,7 +432,7 @@
     (mapcar (lambda (si) (setq ls-seen (normalize-lists-seen si ls-seen))) seen)
     (cons seen (cons ls-seen '()))))
 
-;;;;;;;;;;;;;;   Getting rid of duplicates, in a "set theory" sense   ;;;;;;;;;;;;;;;;;;;
+     ;;;;;;;;   Getting rid of duplicates, in a "set theory" sense   ;;;;;;;;;
 
 (defun norm-cons (xs)
  (if (not (consp (cdr xs)))
@@ -434,7 +460,7 @@
 (defun norm=lvars (d)
   (remove-duplicates d :test #'equal-lists))
 
-;;;;;;;;;;;;;;;;;;;;;;   Getting rid of "ghost" vars ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        ;;;;;;;;;;;;;   Getting rid of "ghost" vars ;;;;;;;;;;;;;;;;;
 
 (defun walk-queries (n s/c/d)
   (labels ((walk-q (s)
@@ -468,11 +494,6 @@
                             (rec (cdr x) acc))))))
         (rec x nil)))
 
-;(defun flat-d (d)
-  ;(apply 'concatenate 'list
-         ;(apply 'concatenate 'list
-                ;(apply 'concatenate 'list d))))
-
 (defun flat-d (d)
          (apply 'concatenate 'list
                 (apply 'concatenate 'list d)))
@@ -498,15 +519,15 @@
       (labels ((norm (l d)
                  (if (null d)
                      '()
-                  (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
+                  (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caaar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                       (norm l (cdr d))
-                      (if (unused (car d) l)
+                      (if (unused (caar d) l)
                           (norm l (cdr d))
                           (cons (car d)(norm l (cdr d))))))))
-        (let ((d^ (flat-d (remove-subsumed (cadar s/c/d)))))
+        (let ((d^ (apply 'concatenate 'list (remove-subsumed (cadar s/c/d)))))
          (norm s/c/d d^))))
 
-;;;;;;;;;;;;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;;;;;;;;;;;;;
+          ;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;
 
 ;The `unused` function checks if a variable `v` in a list `l` is unused. It does
 ;this by checking if `v` is an eigenvalue, a symbol, or a pair with a non-symbol
@@ -595,7 +616,7 @@
                      (normalize s/c/d)
                      (mapcar #'sort-part (partition* (drop-pred-t (normalize-ty s/c/d))))
                      (a-of s/c/d))
-            (normalize-conde (cdr s/c/d)))))
+           (normalize-conde (cdr s/c/d)))))
 
 ;(defun normalize-conde (s/c/d)
   ;(if (null s/c/d)
@@ -641,10 +662,42 @@
 ;(caddar *)
 ;(partition* *)
 ;(normalize-conde (runno 1 (q) (fresh (x y) (=/= x y) (numbero x) (== x q))))
-;(normalize-conde (runno 2 (q) (fresh (x y) (conde ((== x y) (== x 5) (== q y) (numbero q)
-                                                  ;((== x 6) (=/= y x)(== q y)))))))
+;(cadr *)
+;(run 1 (q) (fresh (x y) (=/= x y) (numbero x) (== x q)))
+;(run 2 (q) (fresh (x y) (conde ((== x y) (== x 5) (== q y) (numbero q))
+                               ;((== x 6) (=/= y x)(== q y)))))
 ;(normalize-conde (runno 2 (q) (fresh (x y) (conde ((== x y) (== x 5) (== q y) (numbero q))
-                                                 ;((== x 6) (=/= y x)(== q y)(symbolo y))))))
+                                  ;((== x 6) (=/= y x)(== q y)(symbolo y))))))
 ;(normalize-conde (runno 1 (q) (fresh (x y z)(numbero z)(numbero x)(== q `(,x ,z ,y)) (numbero y))))
-;;(walk* * '((#(1) . cat)(#(2) . 9) (#(0) . #(1))))
-
+;(runno 1 (q) (fresh (x y) (== x y) (=/= y 9) (== q x)))
+;(run 1 (q) (fresh (x y) (== x y) (=/= y 9) (== q x)))
+;(runno 1 (q) (fresh (x y) (== x y) (=/= y 9)(== y 10) (== q `(,x ,y))))
+;(run 1 (q) (fresh (x y) (== x y) (=/= y 9)(== y 10) (== q `(,x ,y))))
+;(runno 1 (q) (fresh (x y z) (== x y) (=/= `(,y 9) `(45 ,z)) (numbero x) (== q `(,x ,y ,z))))
+;(normalize-conde *)
+;(d-of (car *))
+;(cadr **)
+;(run 1 (q) (fresh (x y z) (== x y) (=/= `(,y 9) `(45 ,z)) (numbero x) (== q `(,x ,y ,z))))
+;(unit '(3))
+;(run 1 (q) (fresh (x y) (== x y) (=/= y 9)(numbero y) (== q `(,x ,y))))
+;(reify-state/1st-var (car *))
+;(runno 1 (q) (fresh (x y z) (== x y) (=/= y 9)(numbero z) (== q `(,x ,y))))
+;(run 1 (q) (fresh (x y z) (== x y) (=/= y 9)(numbero z) (== q `(,x ,y))))
+;(runno 1 (q) (fresh (x y) (== x y) (=/= y 'cat)(numbero x) (== q `(,x ,y))))
+;(walk* * '((#(1) . cat)(#(2) . 9) (#(0) . #(1))))
+;(run 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y)) (== z w) (=/= z 42) (== q`(,x ,y ,z ,w))))
+;(runno 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y)) (== z w) (=/= z 42) (== q`(,x ,y ,z ,w))))
+;(runno 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y)) (=/= z 42) (== q`(,x ,y ,w))))
+;(run 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y))(numbero x) (=/= z 42) (== q`(,x ,y ,w))))
+;(runno 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y))(numbero x) (=/= z 42) (== q`(,x ,y ,w))))
+;(run 1 (q) (== q 9))
+;(car *)
+;(d-of *)
+;(cdar *)
+;(car **)
+;(cdr **)
+;(run 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y)) (== z w) (=/= z 42) (== q`(,x ,y ,z ,w))))
+;(runno 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y)) (== z w) (=/= z 42) (== q`(,x ,y ,z ,w))))
+;(normalize-conde *)
+;(map 'list #'reify-state/1st-var *)
+;(run 1 (q) (fresh (x y) (== x y)(numbero y) (== q `(,x ,y))))
