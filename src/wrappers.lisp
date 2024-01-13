@@ -88,47 +88,6 @@
 (defun reify-name (n)
   (make-symbol (concatenate 'string "_." (write-to-string n))))
 
-
-;The `reify-state/1st-var` function is responsible for reifying the state of the
-;first  variable  in the  given  state-constraint  pair  (`s/c/d`).  It replaces
-;logical variables with their corresponding values  in the state and keeps track
-;of new  names  for  variables.  Here's  how  the `reify-state/1st-var` function
-;works:
-;1. It takes the `s/c/d` state-constraint pair as input.
-;2.  It  defines a  local function  `o` that  takes  a  constraint  `ti`  as its
-;argument.
-;3.  Inside the  `o` function,  it uses  `walk*` to get  the value of  the first
-;variable in the current state (`s`).
-;4.  If the value (`v`) is a logical  variable,  it checks if there is already a
-;value assigned to it in `s`.  If so,  it returns `s` unchanged.  Otherwise,  it
-;generates a new  name  for  the  logical  variable  by calling the `reify-name`
-;function and adds a binding of the  form `(lvar . name)` to `s`.  The new state
-;`s'` is returned.
-;5. If the value `v` is a pair, it recursively applies `reify-s` to both its car
-;and cdr values. Then it applies the same transformation to the resulting states
-;`s1` and `s2`. The new state `s'` is returned.
-;6.  If the value  `v` is neither a  logical variable nor a  pair,  it is simply
-;returned as it is.
-;7. Finally, the `o` function is called with the first constraint in `s/c/d` and
-;the resulting state is returned.
-;Overall,  the  `reify-state/1st-var` function  reifies the  state of  the first
-;variable  in `s/c/d`  by generating  a new  name for  the variable  if it  is a
-;logical variable, combining the reified states of its elements if it is a pair,
-;or leaving it unchanged otherwise.
-;(defun reify-state/1st-var (s/c/d)
-  ;(labels (( o (ti)
-            ;(let ((v (walk* ti (caar s/c/d))))
-                ;(walk* v (reify-s v '())))))
-   ;(o (cons (lvar 0)
-        ;(if (and (not (equal (cdr s/c/d) '(())))
-                 ;(not (equal (cdr s/c/d) '())))
-            ;(if (or (cddr s/c/d)(cdadr s/c/d))
-                ;`(where . ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
-                                ;(cdr s/c/d)))
-                ;`(where . ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
-                                ;(cdr s/c/d))))
-            ;'())))))
-
 (defun reify-state/1st-var (s/c/d)
   (labels (( o (ti)
             (let ((v (walk* ti (s-of s/c/d))))
@@ -139,18 +98,18 @@
               nil)
              ((null? (ty-of s/c/d))
               (if (not (equal (cdar (d-of s/c/d)) nil))
-                  `(where  ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
+                  `(where  ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
                                (cadr s/c/d)))
                   `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
                                  (cadr s/c/d)))))
              ((null? (d-of s/c/d))
-              `(and ,(ty-of s/c/d)))
+              `(with ,(ty-of s/c/d)))
              ((and (d-of s/c/d) (ty-of s/c/d))
               (if (not (equal (cdar (d-of s/c/d)) nil))
-                 (cons `(where  ,(mapcar (lambda (mini) `(or . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
-                                  (cadr s/c/d))) `(and ,(ty-of s/c/d)))
+                 (cons `(where  ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
+                                  (cadr s/c/d))) `(with ,(ty-of s/c/d)))
                  (cons `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
-                                  (cadr s/c/d))) `(and ,(ty-of s/c/d)))))
+                                  (cadr s/c/d))) `(with ,(ty-of s/c/d)))))
              (T nil))))))
 
 ;The `mK-reify`  function is used  to reify the  state of  the variables  in the
@@ -177,8 +136,7 @@
      ;(if (cdr s/c/d)
          ;(setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
          ;(setq s/c/d (cons (remove nil (car s/c/d)) '()))))
-    (let ((S (map 'list #'reify-state/1st-var s/c/d)))
-      ;(let ((S (reify-state/1st-var (car s/c/d))))
+    (let ((S (apply 'concatenate 'list (map 'list #'reify-state/1st-var s/c/d))))
        (if (cdr S)
            (format t "~{~a~%~^ ~}" S)
            (format t "~{~a~^ ~}" (car S))))
@@ -552,8 +510,6 @@
                      '()
                      (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar ty) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                          (norm l (cdr ty))
-                         ;(if (unused (car ty) l)
-                             ;(norm l (cdr ty))
                          (cons (car ty)(norm l (cdr ty)))))))
               (norm s/c/d (caddar s/c/d))))
 
@@ -684,6 +640,7 @@
 ;(runno 1 (q) (fresh (x y z) (== x y) (=/= y 9)(numbero z) (== q `(,x ,y))))
 ;(run 1 (q) (fresh (x y z) (== x y) (=/= y 9)(numbero z) (== q `(,x ,y))))
 ;(runno 1 (q) (fresh (x y) (== x y) (=/= y 'cat)(numbero x) (== q `(,x ,y))))
+;(run 1 (q) (fresh (x y) (== x y) (=/= y 'cat)(numbero x) (== q `(,x ,y))))
 ;(walk* * '((#(1) . cat)(#(2) . 9) (#(0) . #(1))))
 ;(run 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y)) (== z w) (=/= z 42) (== q`(,x ,y ,z ,w))))
 ;(runno 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y)) (== z w) (=/= z 42) (== q`(,x ,y ,z ,w))))
@@ -696,7 +653,7 @@
 ;(cdar *)
 ;(car **)
 ;(cdr **)
-;(run 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y)) (== z w) (=/= z 42) (== q`(,x ,y ,z ,w))))
+;(run 1 (q) (fresh (x y z w)(numbero x) (=/= `(,x 12) `(9 ,y)) (== z w) (=/= z 42) (== q`(,x ,y ,z ,w))))
 ;(runno 1 (q) (fresh (x y z w) (=/= `(,x 12) `(9 ,y)) (== z w) (=/= z 42) (== q`(,x ,y ,z ,w))))
 ;(normalize-conde *)
 ;(map 'list #'reify-state/1st-var *)
