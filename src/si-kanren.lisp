@@ -12,7 +12,7 @@
 (defun the-pos (u s) (position u s :key #'car :test #'equalp))
 
 
-;;; "si-kanren" starts
+;;; "si-kanren" (core microKanren) starts
 
 ;The  `lvar` function  is used  to create  a logical  variable in  the si-kanren
 ;library.  It takes a single  argument `c` and returns a vector  with `c` as its
@@ -211,7 +211,7 @@
 
 ;;"si-kanren" stops
 
-;;;;;;;;;;;;;;;;;;;;;;;   Disequality constraint   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;   Disequality constraint store   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun filter (f l) (if (equal l '())
                         '()
@@ -544,7 +544,7 @@
 ;(run  1 (q) (fresh (x y) (=/= `(,x 9) `(8 ,y)) (== q `(,x ,y)) (== y 10)))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;   Type constraint     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;   Type constraint store     ;;;;;;;;;;;;;;;;;;;;;;
 
 (defun tag=? (t0 t1)
   (eq t0 t1))
@@ -987,3 +987,76 @@
 ;(let ((tree2 '("one" ("one" "two") (("one" "Two" "three")))))
   ;(sublis '(("two" . 2)) tree2 :test 'equal))
 
+;;;;;;;;;;;;;;;;;;;;;;;   Absento constraint store   ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun make-pred-A (tag)
+  (lambda (x) (not (and (tag? x) (tag=? x tag)))))
+
+(defun ext-A-with-pred (x tag pred s a)
+  (cond ((null? a) `((,x . (,tag . ,pred))))
+        (T (let ((ac (car A)))
+             (let ((a-tag (tag-of ac)))
+               (cond ((equal (walk (car ac) s) x)
+                      (cond ((tag=? a-tag tag) '(pluto))
+                            (T (ext-A-with-pred x tag pred s (cdr a)))))
+                     (T (ext-A-with-pred x tag pred s (cdr a)))))))))
+
+(defun ext-A (x tag s a)
+  (cond ((null? a)
+         (let ((pred (make-pred-A tag)))
+           `((,x . (,tag . ,pred)))))
+        (T (let ((ac (car a))
+                 (ad (cdr a)))
+               (let ((a-tag (tag-of ac)))
+                 (cond ((equal (walk (car ac) s) x)
+                        (cond ((tag=? a-tag tag) '())
+                              (T (ext-A x tag S ad))))
+                       ((tag=? a-tag tag)
+                        (let ((a-pred (pred-of ac)))
+                          (ext-A-with-pred x tag a-pred s ad)))
+                       (T (ext-A x tag s ad))))))))
+
+
+(defun absento/u (u tag st s/c d ty a)
+  (let ((u (walk u (s-of st))))
+    (cond ((lvar? u) (let ((A+ (ext-A u tag (s-of st) ty)))
+                       (cond ((null? A+) st)
+                             (T (unit (make-st s/c d ty (append A+ A)))))))
+          ((pair? u) (let ((au (car u))
+                           (du (cdr u)))
+                       (let ((st (absento/u au tag st s/c d ty a)))
+                         (and st (let ((s/c (s/c-of st))
+                                       (d (d-of st))
+                                       (ty (ty-of st))
+                                       (a (a-of st)))
+                                   (absento/u du tag st s/c d ty a))))))
+          (T (cond ((and (tag? u) (tag=? u tag)) nil)
+                   (T st))))))
+
+(defun absento (tag u)
+  (cond ((not (tag? tag))
+         (error "Incorrect absento usage: ~s is not a tag" tag))
+        (T (lambda (st)
+             (let ((s/c (s/c-of st))
+                   (d (d-of st))
+                   (ty (ty-of st))
+                   (a (a-of st)))
+                (let ((absu (absento/u u tag st s/c d ty a)))
+                    (if absu
+                        (unit absu)
+                        mzero)))))))
+
+;(make-pred-a 'sym)
+;(funcall * 9)
+;(ext-a  #(2) 'sym  '((#(0) . #(1)) (#(2) . 9)) '())
+;(cddar *)
+;(funcall * 9)
+;(ext-a-with-pred #(2) 'sym #'symbolp '((#(0) . #(1)) (#(2) . 9)) '())
+;(ext-a-with-pred #(2) 'sym #'symbolp '((#(0) . #(1)) (#(3) . 9)) '((#(2) sym . symbolp)))
+;(funcall * '((((#(4) . 4)(#(5) . 9) (#(3) . 7)(#(2) . 3)) . 9) ((#(1) . 11) (#(2) . 5)(#(9) . 10)) () ()))
+;(absento 'num #(9))
+;(funcall * '((((#(4) . 4)(#(5) . 9)) . 3)
+             ;(((#(3) . 7))((#(2) . top)))
+             ;((#(6) sym . symbolp))
+             ;((#(9) num . numberp))))
+;(runno 1 (q) (symbolo q))
