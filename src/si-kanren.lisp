@@ -270,20 +270,20 @@
       (if d^
           (if (equal d^ '(()))
               (unit s/c/d)
-              (let ((rt (reform-T (ty-of s/c/d) (s-of s/c/d))))
-                 (funcall (lambda (TY)
-                            (cond ((member '(err) TY :test #'equal ) mzero)
-                                  ((member nil TY)
-                                   (unit (make-st
-                                          (cons (s-of s/c/d) (c-of s/c/d))
-                                          (remove nil (normalize-d<t TY (cons d^ (d-of s/c/d))))
-                                          (remove nil rt)
-                                          (a-of s/c/d))))
-                                  (T (unit (make-st
-                                                 (cons (s-of s/c/d) (c-of s/c/d))
-                                                 (remove nil (normalize-d<t TY (cons d^ (d-of s/c/d))))
-                                                 TY
-                                                 (a-of s/c/d)))))) rt)))
+              ;(let ((rt (reform-T (ty-of s/c/d) (s-of s/c/d))))
+                 ;(funcall (lambda (TY)
+                            ;(cond ((member '(err) TY :test #'equal ) mzero)
+                                  ;((member nil TY)
+                                   ;(unit (make-st
+                                          ;(cons (s-of s/c/d) (c-of s/c/d))
+                                          ;(remove nil (normalize-d<t TY (cons d^ (d-of s/c/d))))
+                                          ;(remove nil rt)
+                                          ;(a-of s/c/d))))
+              (unit (make-st
+                          (cons (s-of s/c/d) (c-of s/c/d))
+                          (remove nil (normalize-d<t (ty-of s/c/d) (cons d^ (d-of s/c/d))))
+                          (ty-of s/c/d)
+                          (a-of s/c/d))))
        mzero))))
 
 
@@ -380,21 +380,6 @@
 ;(filter (lambda (l) (not (null? l)))(cdr **))
 ;(cadr ***)
 
-(defun normalize-d<t (ty ds)
-  (bind (mapm (lambda (es)
-                (let ((d^ (subsumed-d-pr? (mapcar #'car es)
-                                          (mapcar #'cdr es)
-                                          ty)))
-                    (if d^
-                      (if (equal d^ '(()))
-                          '(())
-                          (unit d^))
-                      '(err))))
-              (filter (lambda (l) (not (null? l)))
-                      ds))
-        (lambda (d)
-          d)))
-
 (defun normalize-disequality-store (s ds)
  (bind (mapm (lambda (es)
                (let ((d^ (disequality (mapcar #'car es)
@@ -447,7 +432,8 @@
 ;(subtract-s * '((#(0) . #(1)) (#(2) . 3)))
 ;(cons * '((#(0) . #(1)) (#(2) . 3)))
 ;(normalize-disequality-store *)
-
+;(runno 1 (q) (fresh (x y)(== q `(,x ,y))(== `(,x 3) `(cat ,y))(numbero y)))
+;(runno 1 (q) (fresh (x y)(== q `(,x ,y))(== `(,x 3) `(cat ,y)) (numbero x)))
 ;(runno 1 (q) (fresh (x y)(== q `(,x ,y))(=/= `(,x 3) `(cat ,y))))
 ;(runno 1 (q) (fresh (x y)(== q 9)(=/= `(,x 3) `(cat ,y))))
 ;(runno 1 (q) (fresh (x y)(=/= `(,x 3) `(cat ,y))(== y 3) (== q `(,x ,y))(== x 'cat)))
@@ -611,26 +597,22 @@
              ; rest of the constraints
            (T (ext-TY x tag pred TY-next))))))))
 
-;The `subsumed-d-pr?` function checks if a disequality constraint is subsumed by
-;any existing constraints in the type constraint store (`TY`). It takes the type
-;constraint store  (`TY`) as  an argument and  returns a  function that  takes a
-;disequality constraint (`d-pr`) as an argument.
-;In  the function,  it  first retrieves  the second  element of  the disequality
-;constraint,  which represents the value `u`  in the disequality `(!= u v)`.  It
-;then checks if `u` is a logical variable. If it is, it returns `()`, indicating
-;that the  constraint is not subsumed.  If  `u` is  not a  logical variable,  it
-;searches for  a matching constraint in  the type constraint  store (`TY`) using
-;the value `u` as the key.  If a matching constraint is found,  it checks if the
-;predicate of the constraint (defined by the `pred-of` function) is satisfied by
-;the value `u`. If it is, it returns `()`, indicating that the constraint is not
-;subsumed.  If the predicate is not satisfied,  it returns `t`,  indicating that
-;the constraint is subsumed.
-;`subsumed-d-pr?  and rem-subsumed-D<T are  used in the `make-type-constraint/x`
-;function to handle type constraints and disequalities in the si-Kanren system.
-;(defun subsumed-d-pr? (u v TY)
-  ;(if (lvar=? (car u) (caar TY))
-      ;'(T)
-      ;'(())))
+(defun reform-T (TY S)
+  (cond ((null? TY) '())
+        (T (let ((rt (reform-T (cdr TY) S)))
+             (funcall (lambda (T0)
+                        (let ((u (walk (car (car TY)) S))
+                              (tag (tag-of (car TY)))
+                              (pred (pred-of (car TY))))
+                          (cond ((lvar? u)
+                                 (cond ((let ((et (ext-TY u tag pred T0)))
+                                         (cond ((equal et "err") mzero)
+                                               ((equal et "same") rt)
+                                               (T (funcall (lambda (T+) (append T+ T0)) et)))))
+                                       (T "err")))
+                                (T (if (or (funcall pred  u) rt)
+                                       (append rt '(()))
+                                       (append rt '((err)))))))) rt)))))
 
 (defun subsumed-d-pr? (u v TY)
       (cond
@@ -659,63 +641,20 @@
                       (unit d^))
                   (unit d^))))))
 
-
-;(defun subsumed-d-pr? (A/T)
-  ;(lambda (pr-d)
-    ;(let ((u (cdar pr-d)))
-      ;(cond ((lvar? u) '())
-            ;(T (let ((pr (assoc  (caar pr-d) A/T :test #'equalp)))
-                 ;(and pr (let ((tag (tag-of pr)))
-                           ;(cond ((and (tag? tag) (tag? u) (tag=? u tag)))
-                                 ;((funcall (pred-of pr) u) '())
-                                 ;(T T))))))))))
-
-
-;(defun subsumed-d-pr? (TY)
-  ;(lambda (d-pr)
-    ;(let ((u (cdar d-pr)))
-      ;(cond
-         ;; We want the disequality to be between a variable and a constant,
-         ;;can ignore constraints between two variables.
-                     ;((lvar? u) '())
-                     ;(T (let ((sc (assoc  (caar d-pr) TY :test #'equalp)))
-                          ;(and sc
-                            ;(cond
-                              ;((funcall (pred-of sc) u) '())
-                              ;(T T)))))))))
-
-;The `rem-subsumed-D<T`  function removes subsumed  disequality constraints from
-;the disequality store (`D`).  It takes the type constraint store (`TY`) and the
-;disequality store (`D`)  as  arguments.  It  uses  the  `delete-if` function to
-;remove  disequality constraints  from the  store  (`D`)  that  are  subsumed by
-;constraints in the type constraint  store (`TY`).  It uses the `subsumed-d-pr?`
-;function to determine if a constraint is subsumed.
-;(defun rem-subsumed-D<T (TY D)
-  ;(remove-if (subsumed-d-pr? TY) D))
-
-;(defun my-subsume (A/T D)
-  ;(delete-if (lambda (d) (subsumed-d-pr? A/T) d) D))
-
-;(defun make-type-constraint/x (u tag pred st)
-     ;(let ((ty (ext-TY u tag pred (ty-of st))))
-          ;(funcall (lambda (T+)
-                     ;(cond ((equal T+ "same") st)
-                           ;((equal T+ "err") '())
-                           ;(T (let ((TY-next (append T+ (ty-of st))))
-                                ;(let ((rt (reform-T TY-next (s-of st))))
-                                   ;(funcall (lambda (TY)
-                                              ;(cond ((member '(err) TY :test #'equal ) mzero)
-                                                    ;((member nil TY)
-                                                     ;(make-st
-                                                       ;(s/c-of st)
-                                                       ;(rem-subsumed-D<T TY (d-of st))
-                                                       ;(remove nil rt)
-                                                       ;'(pippo)))
-                                                    ;(T  (make-st
-                                                               ;(s/c-of st)
-                                                               ;(rem-subsumed-d<t TY (d-of st))
-                                                               ;TY
-                                                               ;'(topo))))) rt)))))) ty)))
+(defun normalize-d<t (ty ds)
+  (bind (mapm (lambda (es)
+                (let ((d^ (subsumed-d-pr? (mapcar #'car es)
+                                          (mapcar #'cdr es)
+                                          ty)))
+                    (if d^
+                      (if (equal d^ '(()))
+                          '(())
+                          (unit d^))
+                      '(err))))
+              (filter (lambda (l) (not (null? l)))
+                      ds))
+        (lambda (d)
+          d)))
 
 (defun make-type-constraint/x (u tag pred st)
      (let ((ty (ext-TY u tag pred (ty-of st))))
@@ -727,14 +666,6 @@
                                       (remove nil (normalize-d<t T+ (d-of st)))
                                       (append T+ (ty-of st))
                                       '(topo))))) ty)))
-
-;(defun my-normD<T (TY D)
-  ;(if (null? TY)
-      ;nil
-      ;(if (cdar TY)
-          ;(rem-subsumed-d<t (car TY) D)
-          ;(rem-subsumed-d<t (car TY) D)))
-  ;(my-normD<T (cdr TY) D))
 
 ;(normalize-disequality-store '((#(5) . 5))
                               ;'(((#(5) . 5)(#(9) . 8))))
@@ -1056,19 +987,3 @@
 ;(let ((tree2 '("one" ("one" "two") (("one" "Two" "three")))))
   ;(sublis '(("two" . 2)) tree2 :test 'equal))
 
-(defun reform-T (TY S)
-  (cond ((null? TY) '())
-        (T (let ((rt (reform-T (cdr TY) S)))
-             (funcall (lambda (T0)
-                        (let ((u (walk (car (car TY)) S))
-                              (tag (tag-of (car TY)))
-                              (pred (pred-of (car TY))))
-                          (cond ((lvar? u)
-                                 (cond ((let ((et (ext-TY u tag pred T0)))
-                                         (cond ((equal et "err") mzero)
-                                               ((equal et "same") rt)
-                                               (T (funcall (lambda (T+) (append T+ T0)) et)))))
-                                       (T "err")))
-                                (T (if (or (funcall pred  u) rt)
-                                       (append rt '(()))
-                                       (append rt '((err)))))))) rt)))))
