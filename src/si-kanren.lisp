@@ -120,20 +120,23 @@
           (let ((nds (normalize-d<s/t/a #'disequality s^ (d-of s/c/d))))
             (if (member 'err nds)
                 nil
-                (let ((rt (reform-T (ty-of s/c/d) s^)))
-                     (funcall (lambda (TY)
-                                (cond ((member '(err) TY :test #'equal ) mzero)
-                                      ((member nil TY)
-                                       (unit (make-st
-                                              (cons s^ (c-of s/c/d))
-                                              (remove nil (normalize-d<s/t/a #'subsumed-d-pr? TY (remove nil nds)))
-                                              (remove nil rt)
-                                              (a-of s/c/d))))
-                                      (T (unit (make-st
-                                                     (cons s^ (c-of s/c/d))
-                                                     (remove nil (normalize-d<s/t/a #'subsumed-d-pr? TY (remove nil nds)))
-                                                     TY
-                                                     (a-of s/c/d)))))) rt))))
+                (let ((rt (reform-T (ty-of s/c/d) s^))
+                      (ra (reform-a (a-of s/c/d) s^)))
+                     (if (member '(err) ra)
+                         nil
+                         (funcall (lambda (TY)
+                                    (cond ((member '(err) TY :test #'equal ) mzero)
+                                          ((member nil TY)
+                                           (unit (make-st
+                                                  (cons s^ (c-of s/c/d))
+                                                  (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)))
+                                                  (remove nil rt)
+                                                  (remove nil ra))))
+                                          (T (unit (make-st
+                                                         (cons s^ (c-of s/c/d))
+                                                         (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)))
+                                                         TY
+                                                         (remove nil ra)))))) rt)))))
           mzero))))
 
 ;The  `mplus`  function  is  used  to  concatenate  two  streams.  It  takes two
@@ -270,7 +273,8 @@
               (unit s/c/d)
               (unit (make-st
                           (cons (s-of s/c/d) (c-of s/c/d))
-                          (remove nil (normalize-d<s/t/a #'subsumed-d-pr? (ty-of s/c/d) (cons d^ (d-of s/c/d))))
+                          (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (a-of s/c/d)
+                                        (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? (ty-of s/c/d) (cons d^ (d-of s/c/d))))))
                           (ty-of s/c/d)
                           (a-of s/c/d))))
        mzero))))
@@ -604,7 +608,7 @@
                                        (append rt '(()))
                                        (append rt '((err)))))))) rt)))))
 
-(defun subsumed-d-pr? (u v TY)
+(defun subsumed-d-pr/T? (u v TY)
       (cond
          ((cdr u)
           (let ((sc^ (assoc (car u) TY :test #'equalp))
@@ -638,7 +642,7 @@
                            ((equal T+ "err") '())
                            (T (make-st
                                       (s/c-of st)
-                                      (remove nil (normalize-d<s/t/a #'subsumed-d-pr? T+ (d-of st)))
+                                      (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? T+ (d-of st)))
                                       (append T+ (ty-of st))
                                       (a-of st))))) ty)))
 
@@ -666,12 +670,12 @@
 ;(funcall *)
 ;(my-subsume '((#(3) num . numberp)) '(((#(4) . cat))((#(3) . cat))))
 ;(rem-subsumed-d<t  '((#(3) num . numberp)) '(((#(4) . cat))((#(3) . cat))))
-;(subsumed-d-pr? '(#(6) #(3)) '(10 cat)  '((#(6) num . numberp) (#(4) num . numberp)))
+;(subsumed-d-pr/T? '(#(6) #(3)) '(10 cat)  '((#(6) num . numberp) (#(4) num . numberp)))
 ;(assoc  (cdr '(#(4) #(6))) '((#(6) num . numberp) (#(4) num . numberp)) :test #'equalp)
 ;(cdr '(#(4) #(6)))
-;(subsumed-d-pr? #(4) 9  '((#(3) sym . symbolp) (#(4) num . numberp)))
-;(subsumed-d-pr? #(4) 'cat  '((#(4) sym . symbolp)))
-;(subsumed-d-pr? #(4) 9  '((#(4) sym . symbolp)))
+;(subsumed-d-pr/T? #(4) 9  '((#(3) sym . symbolp) (#(4) num . numberp)))
+;(subsumed-d-pr/T? #(4) 'cat  '((#(4) sym . symbolp)))
+;(subsumed-d-pr/T? #(4) 9  '((#(4) sym . symbolp)))
 ;(funcall * '(((#(4) . cat))((#(5) . cat))))
 ;(rem-subsumed-d<t '((#(3) num . numberp)) '(((#(4) . cat) (#(3) . cat)) ((#(5) . 7))))
 ;(rem-subsumed-d<t '((#(3) num . numberp)) '(((#(3) . cat) (#(3) . cat)) ((#(5) . 7))))
@@ -936,6 +940,7 @@
 ;(reform-t '((#(1) sym . symbolp)) '((#(1) . 3) (#(0) .#(1))))
 ;(member '(err) *)
 
+;(reform-a  '((#(2) cat . numberp)) '((#(2) . 11) (#(0) .#(1))))
 ;(reform-t '((#(2) num . numberp)) '((#(1) . 3) (#(0) .#(1))))
 ;(reform-t '((#(3) sym . symbolp)(#(2) num . numberp)) '((#(1) . 3) (#(0) .#(1))))
 ;(reform-t '((#(3) sym . symbolp)(#(2) num . numberp)) '((#(1) . 3)(#(2) . 'cat) (#(0) .#(1))))
@@ -995,12 +1000,39 @@
                           (ext-A-with-pred x tag a-pred s ad)))
                        (T (ext-A x tag s ad))))))))
 
+(defun subsumed-d-pr/A? (u v A)
+      (cond
+         ((cdr u)
+          (let ((sc^ (assoc (car u) A :test #'equalp))
+                (sc^^ (assoc (cadr u) A :test #'equalp))
+                (d (list (cons (car u) (car v)) (cons (cadr u) (cadr v)))))
+             (if (or sc^ sc^^)
+                (if sc^
+                    (if (tag=? (tag-of sc^) (car v))
+                     '(())
+                     d)
+                    (if sc^^
+                        (if (tag=? (tag-of sc^^) (cadr v))
+                           '(())
+                            d)))
+                d)))
+         ; We want the disequality to be between a variable and a constant,
+         ;can ignore constraints between two variables.
+         ((lvar? v) '())
+         (T (let ((sc (assoc  (car u) A :test #'equalp))
+                  (d^ (cons (car u) (car v))))
+              (if sc
+                  (if (tag=? (tag-of sc) (car v))
+                      '(())
+                      (unit d^))
+                  (unit d^))))))
 
 (defun absento/u (u tag st s/c d ty a)
   (let ((u (walk u (s-of st))))
     (cond ((lvar? u) (let ((A+ (ext-A u tag (s-of st) a)))
                        (cond ((null? A+) st)
-                             (T (unit (absento->diseq A+ s/c d ty a))))))
+                             (T (let ((d (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? A+ (d-of st)))))
+                                  (unit (absento->diseq A+ s/c d ty a)))))))
                              ;(T (unit (make-st s/c d ty (remove nil (append A+ A))))))))
           ((pair? u) (let ((au (car u))
                            (du (cdr u)))
@@ -1025,7 +1057,7 @@
                     (if absu
                         absu
                         mzero)))))))
-
+;(normalize-d<s/t/a #'subsumed-d-pr/a? '((#(3) pip . symbolp)(#(2) cat . numberp)) '(((#(1) . 3)(#(2) . cat))))
 ;(remove-duplicates '((#(2) sym . symbolp) (#(3) num . numberp) (#(2) num . numberp)) :test #'lvar=? :key #'car)
 ;(remove-duplicates  (mapcar #'car '((#(2) sym . symbolp) (#(3) num . numberp) (#(2) sym . symbolp))))
 ;(make-pred-a 'sym)
@@ -1067,12 +1099,19 @@
 ;(runno 1 (q w) (numbero w))
 ;(runno 1 (q w) (absento 'cat w))
 ;(runno 1 (q w) (== 9 q)(absento 'cat w))
+;((lambda (x) (not (and (tag? x) (tag=? x 'cat)))) 'bat)
 ;(runno 1 (q w) (symbolo q)(absento 'cat w))
 ;(runno 1 (q w) (== 9 w)(symbolo q)(absento 'cat w))
 ;(runno 1 (q w) (numbero w)(absento 'cat q))
 ;(runno 1 (q w) (numbero q)(absento 'cat q))
 ;(runno 1 (q w) (numbero q)(absento 'cat q)(absento 'bat w))
+;(runno 1 (q) (fresh (x)(numbero x)(absento 'cato q)(== 'bat q)));;<-------------- da rivedere
+;(runno 1 (q) (fresh (x)(numbero x)(absento 'cato q)(== 'cato q)));;<-------------- da rivedere
 ;(runno 1 (q) (fresh (x)(numbero x)(== 'cat q) (absento 'cato q)));;<-------------- da rivedere
+;(runno 1 (q) (fresh (w y)(symbolo w)(absento 'cat w)(absento 'top y)(absento 'tip y)(absento 'top y)(absento 'tap y)(== y 'top)))
+;(runno 1 (q) (fresh (x)(numbero x)(== 'cat q)))
+;(runno 1 (q) (numbero q)(absento 'tag q))
+;(runno 1 (q) (== 'cat q))
 ;(run 1 (q) (numbero q)(absento 'cat q))
 ;(runno 1 (q) (symbolo q)(absento 'top q)(absento 'tip q))
 ;(runno 1 (q) (symbolo q)(absento 'top q)(absento 'top q)(absento 'tip q)) ;SI?
@@ -1083,7 +1122,13 @@
 ;(runno 1 (q) (fresh (w y)(numbero y)(absento 'cat w)(absento 'top y)(absento 'tip y)(absento 'top y)(absento 'tap y)(== q `(,w ,y))))
 ;(runno 1 (q) (fresh (w y)(symbolo w)(numbero y)(absento 'cat w)(absento 'top y)(absento 'tip y)(absento 'top y)(absento 'tap y)(== q `(,w ,y))))
 ;(runno 1 (q) (fresh (x)(absento 'cat x)(absento 'top q)))
-;(runno 1 (x) (=/= x 'cat) (absento 'cat `(bat . ,x)))
+;(runno 1 (x) (=/= x 'pop)(=/= x 'cat) (absento 'cat `(bat . ,x)))
+;(runno 1 (x) (=/= x 'cat) (absento 'cat x))
+;(runno 1 (x) (absento 'cat x)(=/= x 'cat))
+;(runno 1 (x y) (absento 'cat x)(=/= `(,x pop)`(bat ,y)))
+;(runno 1 (x y) (absento 'cat x)(=/= `(,x pop)`(cat ,y)))
+;(runno 1 (x)(absento 'cat x))
+;(runno 1 (x y) (=/= `(x . 9) `(8 . y)) (absento 'cat x))
 ;(runno 1 (q)(=/= q 9)(absento 'cat q))
 ;(runno 1 ( x q)(numbero x)(symbolo q)(absento 'top q)(absento 'cat q))
 ;(run 1 ( x q)(numbero x)(=/= q 'pip)(symbolo q)(absento 'top q)(absento 'cat q))
@@ -1182,7 +1227,7 @@
                 (let ((d* (ext-D x (tag-of ac) d s)))
                   (absento->diseq/x+ x a+ s d* ad))))))
                    ;(T (let ((a*+ (cons ac a+)))
-                        ;(absento->diseq/x+ x a*+ s d ad)))))))
+                        ;(absento->diseq/x+ x a*+ s d ad))))))) <------------
 
 (defun ext-D (x tag d s)
   (cond ((find-if (lambda (d) (and (null? (cdr d))
@@ -1193,3 +1238,28 @@
                                           (tag=? d-cd tag))))) d)
          d)
         (T (cons `((,x . ,tag)) d))))
+
+(defun reform-A (A S)
+  (cond ((null? A) '(()))
+        ((let ((ra (reform-A (cdr A) S)))
+          (funcall (reform-A+ (car (car A)) A S) ra)))
+        (T '((err)))))
+
+(defun reform-A+ (x A S)
+  (lambda (aol)
+    (let ((u (walk x S))
+          (tag (tag-of (car A)))
+          (pred (pred-of (car A))))
+        (cond ((lvar? u)
+               (let ((exa (ext-A-with-pred x tag pred S aol)))
+                   (if exa
+                       (funcall (lambda (A+) (append A+ aol)) exa)
+                       '(topo))))
+              ((pair? u)
+               (let ((au (car u))
+                     (du (cdr u)))
+                    (let ((ra+ (funcall (reform-A+ au A S) aol)))
+                     (if ra+
+                         (funcall (reform-A+ du A S) ra+)
+                         '(pippo)))))
+              (T (and (funcall pred u) aol))))))
