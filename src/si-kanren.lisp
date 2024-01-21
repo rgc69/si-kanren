@@ -231,7 +231,7 @@
                 d)))
          ; We want the disequality to be between a variable and a constant,
          ;can ignore constraints between two variables.
-         ((lvar? v) '())
+         ((lvar? (car v)) (unit (cons (car u) (car v))))
          (T (let ((sc (assoc  (car u) TY :test #'equalp))
                   (d^ (cons (car u) (car v))))
               (if sc
