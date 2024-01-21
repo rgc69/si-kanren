@@ -7,9 +7,10 @@ Hemann  and  Dan Friedman.  Other  resources  are  available  on  the miniKanren
 Lisp,  without external libraries like  pmatch,  guard or things like that,  nor
 record types or structs. The **constraint  store** in fact,  as a whole,  has the form:
 
-> cs =  '(((s) . c) .  (d))
+> cs =  '(((s) . c) (d) (t) (a))
 
-where `s` is the  *substitution*,  `c` the *counter* and `d` the *disequality store*.
+where  `s`  is the  *substitution*,  `c`  the  *counter*,  `d`  the *disequality
+store*, `t` the *type store* and `a` the *absento store*.
 
 For more information:
 - Excellent survey paper on unification: [Kevin Knight](https://kevincrawfordknight.github.io/papers/unification-knight.pdf).
@@ -25,10 +26,15 @@ For more information:
 1. core miniKanren (`fresh`,  `conde`,  `==`).
 2. `=/=` constraint,  and thus it's  the first microKanren  written in Common  Lisp with this  feature (at
 least, as far as I know).
-3.  *Reification* of **all** the logic queries variables `x x0...` in `(run _ (x x0...)...)`.  It looks
+3.  `Symbolo`, `numbero` and `absento` constraints, the latter in the restricted
+version,  as  per  the  paper  *A  tutorial  reconstruction  of  miniKanren with
+constraints*        [Bharathi       Ramana        Joshi,        William       E.
+Byrd](https://drive.google.com/file/d/1svTPpIowx4InQIaUU3DyVEMpcoSZP6Bm/view?usp=sharing),
+where the first argument is required to be a symbol only.
+4.  *Reification* of **all** the logic queries variables `x x0...` in `(run _ (x x0...)...)`.  It looks
 like a trick of magic too beautiful to not include it. :magic_wand:
-4. *Interactive* request of a solution/s, with `runi`.
-5. Pretty *formatting* of the answer/s.
+5. *Interactive* request of a solution/s, with `runi`.
+6. Pretty *formatting* of the answer/s.
 
 
 ### Installation
@@ -54,7 +60,7 @@ Many examples can be found in the [playground](src/playground.lisp) file.
 - And, of course, last but not least, many thank's to @webyrd for his sensational [work](https://github.com/webyrd)!
 
 As for the name, *sī*    is the Chinese unit of measurement for **10** *micro*meters:
-since compared to microKanren *sī-Kanren* also contains the disequality store, it seemed
+since compared to microKanren *sī-Kanren* also contains the disequality store, plus the types and absento constraints, it seemed
 to me a fair way to give credit to this system. :grin: And since I think it can
 be pronounced like a *c* (more or less...), as in **C**ommon Lisp, the **c**ircle **c**loses[^2].
 
