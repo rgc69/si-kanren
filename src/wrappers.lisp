@@ -89,28 +89,29 @@
   (make-symbol (concatenate 'string "_." (write-to-string n))))
 
 (defun reify-state/1st-var (s/c/d)
-  (labels (( o (ti)
-            (let ((v (walk* ti (s-of s/c/d))))
-                (walk* v (reify-s v '())))))
-   (o (cons (lvar 0)
-        (cond
-             ((and (null? (d-of s/c/d)) (null? (ty-of s/c/d)))
-              nil)
-             ((null? (ty-of s/c/d))
-              (if (not (equal (cdar (d-of s/c/d)) nil))
-                  `(where ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
-                              (cadr s/c/d)))
-                  `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
-                                 (cadr s/c/d)))))
-             ((null? (d-of s/c/d))
-              `(with ,(ty-of s/c/d)))
-             ((and (d-of s/c/d) (ty-of s/c/d))
-              (if (not (equal (cdar (d-of s/c/d)) nil))
-                 (cons `(where  ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
-                                  (cadr s/c/d))) `(with ,(ty-of s/c/d)))
-                 (cons `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
-                                  (cadr s/c/d))) `(with ,(ty-of s/c/d)))))
-             (T nil))))))
+  (let ((at (append (if (null? (a-of s/c/d)) '() `((absento . ,(a-of s/c/d)))) (ty-of s/c/d))))
+   (labels (( o (ti)
+             (let ((v (walk* ti (s-of s/c/d))))
+                 (walk* v (reify-s v '())))))
+    (o (cons (lvar 0)
+         (cond
+              ((and (null? (d-of s/c/d)) (null? at))
+               nil)
+              ((null? at)
+               (if (not (equal (cdar (d-of s/c/d)) nil))
+                   `(where ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
+                               (cadr s/c/d)))
+                   `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
+                                  (cadr s/c/d)))))
+              ((null? (d-of s/c/d))
+               `(with ,at))
+              ((and (d-of s/c/d) at)
+               (if (not (equal (cdar (d-of s/c/d)) nil))
+                  (cons `(where  ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
+                                   (cadr s/c/d))) `(with ,at))
+                  (cons `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
+                                   (cadr s/c/d))) `(with ,at))))
+              (T nil)))))))
 
 ;The `mK-reify`  function is used  to reify the  state of  the variables  in the
 ;state-constraint pairs. Here is how the `mK-reify` function works:
@@ -513,9 +514,9 @@
                          (cons (car ty)(norm l (cdr ty)))))))
               (norm s/c/d (caddar s/c/d))))
 
-(defun drop-pred-T (TY) (mapcar (lambda (ty) (let ((x (car ty))
-                                                   (tag (tag-of ty)))
-                                                 `(,tag ,x))) TY))
+(defun drop-pred-T/A (TY) (mapcar (lambda (ty) (let ((x (car ty))
+                                                     (tag (tag-of ty)))
+                                                   `(,tag ,x))) TY))
 
 (defun partition* (A)
   (cond ((null? A) '())
@@ -543,6 +544,22 @@
                                          (mapcar #'coerce->l (cdr pr))) #'<)))))
     `(,tag . ,x*)))
 
+;;;;;;;;;;;;;;;;;;;;;;;; Normalization of the Absento Store  ;;;;;;;;;;;;;;;;;;;;;
+
+(defun normalize-A (s/c/d)
+      (labels ((norm (l a)
+                 (if (null a)
+                     '()
+                     (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar a) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
+                         (norm l (cdr a))
+                         (cons (car a)(norm l (cdr a)))))))
+              (norm s/c/d (car (cdddar s/c/d)))))
+
+(defun v>l (l) (cons (car l) (coerce->l (cadr l))))
+
+(defun l>v (l) (cons (car l) (cons (coerce->v (cdr l)) nil)))
+
+(defun part/A (A) (mapcar #'l>v (sort (mapcar #'v>l A) #'< :key #'cadr)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;  Normalize everything  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -570,8 +587,8 @@
       '()
       (cons (make-st (caar s/c/d)
                      (normalize s/c/d)
-                     (mapcar #'sort-part (partition* (drop-pred-t (normalize-ty s/c/d))))
-                     (a-of s/c/d))
+                     (mapcar #'sort-part (partition* (drop-pred-t/a (normalize-ty s/c/d))))
+                     (part/A (drop-pred-t/a (normalize-a s/c/d))))
            (normalize-conde (cdr s/c/d)))))
 
 ;(defun normalize-conde (s/c/d)
