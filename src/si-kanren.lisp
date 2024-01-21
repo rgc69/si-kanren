@@ -252,7 +252,7 @@
   (if (null? a)
       (if (null? d)
           (make-st (s/c-of s) d+ (cons (car ty+) ty) a+)
-          (make-st (s/c-of s) (cons d d+) (cons (car ty+) ty) a+))
+          (make-st (s/c-of s) (apply 'concatenate 'list(cons d d+)) (cons (car ty+) ty) a+))
       (if (lvar=? (caar ty+) (caar a))
           (if (funcall (pred-of (car ty+)) (tag-of (car a)))
               (let ((d^ (unit(cons (cons (caar ty+)(tag-of (car a))) d+))))
