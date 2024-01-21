@@ -1,4 +1,4 @@
-# sī-Kanren, a  microKanren implementation in Common Lisp, with disequality constraint
+# sī-Kanren, a  microKanren implementation in Common Lisp, with disequality, numbero, symbolo and absento constraints
 
 *sī-Kanren*     is      based      on      the      2013     Scheme     Workshop
 [paper](http://webyrd.net/scheme-2013/papers/HemannMuKanren2013.pdf)   by  Jason
