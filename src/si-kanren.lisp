@@ -1,5 +1,16 @@
 (defpackage :si-kanren
-    (:use :common-lisp))
+    (:use :common-lisp)
+    (:export
+      #:run
+      #:run*
+      #:runi
+      #:fresh
+      #:conde
+      #:==
+      #:=/=
+      #:symbolo
+      #:numbero
+      #:absento))
 
 (in-package :si-kanren)
 
