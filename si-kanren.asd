@@ -1,4 +1,4 @@
-(defpackage si-kanren-system
+(defpackage :si-kanren-system
   (:use :common-lisp :asdf))
 
 (in-package :si-kanren-system)
