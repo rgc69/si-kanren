@@ -84,10 +84,10 @@
 
 (defun mK-reify (s/c/d)
     (if (equal nil s/c/d)
-        nil)
-     ;(if (cdr s/c/d)
-         ;(setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
-         ;(setq s/c/d (cons (remove nil (car s/c/d)) '()))))
+        nil
+     (if (cdr s/c/d)
+         (setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
+         (setq s/c/d (cons (remove nil (car s/c/d)) '()))))
     (let ((S (apply 'concatenate 'list (map 'list #'reify-state/1st-var s/c/d))))
        (if (cdr S)
            (format t "~{~a~%~^ ~}" S)
@@ -293,12 +293,12 @@
       (labels ((norm (l d)
                  (if (null d)
                      '()
-                  (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caaar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
+                  (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                       (norm l (cdr d))
-                      (if (unused (caar d) l)
+                      (if (unused (car d) l)
                           (norm l (cdr d))
                           (cons (car d)(norm l (cdr d))))))))
-        (let ((d^ (apply 'concatenate 'list (remove-subsumed (cadar s/c/d)))))
+        (let ((d^ (flat-d (remove-subsumed (cadar s/c/d)))))
          (norm s/c/d d^))))
 
           ;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;
@@ -382,7 +382,10 @@
   (if (null s/c/d)
       '()
       (cons (make-st (caar s/c/d)
-                     (normalize s/c/d)
+                     (let ((d (normalize s/c/d)))
+                       (if (null? d)
+                           nil
+                           (unit d)))
                      (mapcar #'sort-part (partition* (drop-pred-t/a (normalize-ty s/c/d))))
                      (part/A (drop-pred-t/a (normalize-a s/c/d))))
            (normalize-conde (cdr s/c/d)))))
