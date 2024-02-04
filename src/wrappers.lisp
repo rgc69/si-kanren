@@ -66,14 +66,14 @@
          (cond
               ((and (null? (d-of s/c/d)) (null? at))
                nil)
+              ((null? (d-of s/c/d))
+               `(with ,at))
               ((null? at)
                (if (not (equal (cdar (d-of s/c/d)) nil))
                    `(where ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
                                (cadr s/c/d)))
                    `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
                                   (cadr s/c/d)))))
-              ((null? (d-of s/c/d))
-               `(with ,at))
               ((and (d-of s/c/d) at)
                (if (not (equal (cdar (d-of s/c/d)) nil))
                   (cons `(where  ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
@@ -84,10 +84,10 @@
 
 (defun mK-reify (s/c/d)
     (if (equal nil s/c/d)
-        nil
-     (if (cdr s/c/d)
-         (setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
-         (setq s/c/d (cons (remove nil (car s/c/d)) '()))))
+        nil)
+     ;(if (cdr s/c/d)
+         ;(setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
+         ;(setq s/c/d (cons (remove nil (car s/c/d)) '()))))
     (let ((S (apply 'concatenate 'list (map 'list #'reify-state/1st-var s/c/d))))
        (if (cdr S)
            (format t "~{~a~%~^ ~}" S)
@@ -326,7 +326,7 @@
 
 (defun drop-pred-T/A (TY) (mapcar (lambda (ty) (let ((x (car ty))
                                                      (tag (tag-of ty)))
-                                                   `(,tag ,x))) TY))
+                                                    `(,tag ,x))) TY))
 
 (defun partition* (A)
   (cond ((null? A) '())
