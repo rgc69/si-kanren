@@ -5,23 +5,23 @@
 
 (defun  empty-state () (make-st   '(() . 0) '() '() '()))
 
-(defun S/C-of (s/c/d)
-  (car s/c/d))
+(defun S/C-of (st)
+  (car st))
 
-(defun S-of (s/c/d)
-  (caar s/c/d))
+(defun S-of (st)
+  (caar st))
 
-(defun C-of (s/c/d)
-  (cdar s/c/d))
+(defun C-of (st)
+  (cdar st))
 
-(defun D-of (s/c/d)
-  (cadr s/c/d))
+(defun D-of (st)
+  (cadr st))
 
-(defun TY-of (s/c/d)
-  (caddr s/c/d))
+(defun TY-of (st)
+  (caddr st))
 
-(defun a-of (s/c/d)
-  (cadddr s/c/d))
+(defun a-of (st)
+  (cadddr st))
 
 (defun pull (st)
   (if (functionp st)
@@ -57,38 +57,29 @@
 (defun reify-name (n)
   (make-symbol (concatenate 'string "_." (write-to-string n))))
 
-(defun reify-state/1st-var (s/c/d)
-  (let ((at (append (if (null? (a-of s/c/d)) '() `((absento . ,(a-of s/c/d)))) (ty-of s/c/d))))
+(defun reify-state/1st-var (st)
+  (let ((at (append (if (null? (a-of st)) '() `((absento . ,(a-of st)))) (ty-of st))))
    (labels (( o (ti)
-             (let ((v (walk* ti (s-of s/c/d))))
+             (let ((v (walk* ti (s-of st))))
                  (walk* v (reify-s v '())))))
     (o (cons (lvar 0)
          (cond
-              ((and (null? (d-of s/c/d)) (null? at))
+              ((and (null? (d-of st)) (null? at))
                nil)
-              ((null? at)
-               (if (not (equal (cdar (d-of s/c/d)) nil))
-                   `(where ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
-                               (cadr s/c/d)))
-                   `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
-                                  (cadr s/c/d)))))
-              ((null? (d-of s/c/d))
+              ((null? (d-of st))
                `(with ,at))
-              ((and (d-of s/c/d) at)
-               (if (not (equal (cdar (d-of s/c/d)) nil))
-                  (cons `(where  ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini)))
-                                   (cadr s/c/d))) `(with ,at))
-                  (cons `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
-                                   (cadr s/c/d))) `(with ,at))))
+              ((null? at)
+               `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
+                              (cadr st))))
+              ((and (d-of st) at)
+               (cons `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
+                                (cadr st))) `(with ,at)))
               (T nil)))))))
 
-(defun mK-reify (s/c/d)
-    (if (equal nil s/c/d)
+(defun mK-reify (st)
+    (if (equal nil st)
         nil)
-     ;(if (cdr s/c/d)
-         ;(setq s/c/d (mapcar (lambda (l) (remove nil l)) s/c/d))
-         ;(setq s/c/d (cons (remove nil (car s/c/d)) '()))))
-    (let ((S (apply 'concatenate 'list (map 'list #'reify-state/1st-var s/c/d))))
+    (let ((S (apply 'concatenate 'list (map 'list #'reify-state/1st-var st))))
        (if (cdr S)
            (format t "~{~a~%~^ ~}" S)
            (format t "~{~a~^ ~}" (car S))))
@@ -137,10 +128,10 @@
                                   ,@goals))))))
 
 (defmacro run (num (&rest queries) &body goals)
-  `(let ((s/c/d (runno ,num (,@queries) ,@goals)))
-    (if (null s/c/d)
+  `(let ((st (runno ,num (,@queries) ,@goals)))
+    (if (null st)
         nil
-        (mK-reify (normalize-conde s/c/d)))))
+        (mK-reify (normalize-conde st)))))
 
 (defmacro runno* ((&rest queries) &body goals)
   (let ((q (gensym)))
@@ -152,10 +143,10 @@
                             ,@goals))))))
 
 (defmacro run* ((&rest queries) &body goals)
-  `(let ((s/c/d (runno* (,@queries) ,@goals)))
-    (if (null s/c/d)
+  `(let ((st (runno* (,@queries) ,@goals)))
+    (if (null st)
         nil
-        (mK-reify (normalize-conde s/c/d)))))
+        (mK-reify (normalize-conde st)))))
 
 (defmacro nlet-tail (n letargs &rest body)
       (let ((gs (loop for i in letargs
@@ -253,14 +244,14 @@
 
         ;;;;;;;;;;;;;   Getting rid of "ghost" vars ;;;;;;;;;;;;;;;;;
 
-(defun walk-queries (n s/c/d)
+(defun walk-queries (n st)
   (labels ((walk-q (s)
              (if (null s)
                  '()
                  (if (lvar=? (lvar n) (caar s))
                      (car s)
                      (walk-q (cdr s))))))
-   (let ((s^ (caaar s/c/d)))
+   (let ((s^ (caaar st)))
      (walk-q s^))))
 
 (defun lvar-or-atom (v l)
@@ -289,17 +280,17 @@
          (apply 'concatenate 'list
                 (apply 'concatenate 'list d)))
 
-(defun normalize-fresh (s/c/d)
+(defun normalize-fresh (st)
       (labels ((norm (l d)
                  (if (null d)
                      '()
-                  (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caaar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
+                  (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                       (norm l (cdr d))
-                      (if (unused (caar d) l)
+                      (if (unused (car d) l)
                           (norm l (cdr d))
                           (cons (car d)(norm l (cdr d))))))))
-        (let ((d^ (apply 'concatenate 'list (remove-subsumed (cadar s/c/d)))))
-         (norm s/c/d d^))))
+        (let ((d^ (flat-d (remove-subsumed (cadar st)))))
+         (norm st d^))))
 
           ;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;
 
@@ -315,18 +306,18 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Normalization of the Type Store  ;;;;;;;;;;;;;;;;;;;;;
 
-(defun normalize-TY (s/c/d)
+(defun normalize-TY (st)
       (labels ((norm (l ty)
                  (if (null ty)
                      '()
                      (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar ty) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                          (norm l (cdr ty))
                          (cons (car ty)(norm l (cdr ty)))))))
-              (norm s/c/d (caddar s/c/d))))
+              (norm st (caddar st))))
 
 (defun drop-pred-T/A (TY) (mapcar (lambda (ty) (let ((x (car ty))
                                                      (tag (tag-of ty)))
-                                                   `(,tag ,x))) TY))
+                                                    `(,tag ,x))) TY))
 
 (defun partition* (A)
   (cond ((null? A) '())
@@ -356,14 +347,14 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Normalization of the Absento Store  ;;;;;;;;;;;;;;;;;;;;;
 
-(defun normalize-A (s/c/d)
+(defun normalize-A (st)
       (labels ((norm (l a)
                  (if (null a)
                      '()
                      (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar a) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                          (norm l (cdr a))
                          (cons (car a)(norm l (cdr a)))))))
-              (norm s/c/d (car (cdddar s/c/d)))))
+              (norm st (car (cdddar st)))))
 
 (defun v>l (l) (cons (car l) (coerce->l (cadr l))))
 
@@ -373,16 +364,19 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;  Normalize everything  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun normalize (s/c/d)
-  (if (not (cdr s/c/d))
-      (norm=lvars (normalize-fresh s/c/d))
-      (norm=lvars (normalize-fresh (cons (car s/c/d) nil)))))
+(defun normalize (st)
+  (if (not (cdr st))
+      (norm=lvars (normalize-fresh st))
+      (norm=lvars (normalize-fresh (cons (car st) nil)))))
 
-(defun normalize-conde (s/c/d)
-  (if (null s/c/d)
+(defun normalize-conde (st)
+  (if (null st)
       '()
-      (cons (make-st (caar s/c/d)
-                     (normalize s/c/d)
-                     (mapcar #'sort-part (partition* (drop-pred-t/a (normalize-ty s/c/d))))
-                     (part/A (drop-pred-t/a (normalize-a s/c/d))))
-           (normalize-conde (cdr s/c/d)))))
+      (cons (make-st (caar st)
+                     (let ((d (normalize st)))
+                       (if (null? d)
+                           nil
+                           (unit d)))
+                     (mapcar #'sort-part (partition* (drop-pred-t/a (normalize-ty st))))
+                     (part/A (drop-pred-t/a (normalize-a st))))
+           (normalize-conde (cdr st)))))
