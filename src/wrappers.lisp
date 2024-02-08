@@ -348,12 +348,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;; Normalization of the Absento Store  ;;;;;;;;;;;;;;;;;;;;;
 
 (defun normalize-A (st)
-      (labels ((norm (l a)
-                 (if (null a)
-                     '()
-                     (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar a) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
-                         (norm l (cdr a))
-                         (cons (car a)(norm l (cdr a)))))))
+      (labels ((norm (l ab)
+                 (let ((s^ (flatten (car (s-of l)))))
+                  (if (null ab)
+                      '()
+                      (if (member 't
+                             (mapcar (lambda (x)
+                                       (if (and (member x s^ :test #'equalp)
+                                                (member (caar ab) s^ :test #'equalp))
+                                           t
+                                           nil)) (cdr (walk-queries 0 l))))
+                          (cons (car ab) (norm l (cdr ab)))
+                          (norm l (cdr ab)))))))
               (norm st (car (cdddar st)))))
 
 (defun v>l (l) (cons (car l) (coerce->l (cadr l))))
