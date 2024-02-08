@@ -346,20 +346,30 @@
     `(,tag . ,x*)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Normalization of the Absento Store  ;;;;;;;;;;;;;;;;;;;;;
+(run 1 (q) (fresh (x) (absento 'cat x) (== x q)))
+(run 1 (q) (fresh (x w z y r) (== x z) (absento 'cat w)(== y r) (absento 'rat z)(== w x)(absento 'top r)(== q x)(absento 'mat y)))
+(runno 1 (q) (fresh (x w z y r) (== x y)(== w q) (absento 'cat w)(== y r)(== r z) (absento 'rat z)(absento 'top r)(== q x)(absento 'mat y)))
+(run 1 (q) (fresh (x y) (absento 'cat x) (=/= y 'cat)(== y q)))
+(run 1 (q) (fresh (x y) (absento 'cat x) (=/= y 'cat)(== y x) (== y q)))
+(runno 1 (q) (fresh (x y) (absento 'cat x)(== y x) (=/= y 'cat) (== y q)))
+(run 1 (q) (fresh (x y) (=/= y 'cat)(== y x)(absento 'cat x) (== y q)))
+(walk* (lvar 4) (s-of (car **)))
 
+(normalize-a *)
 (defun normalize-A (st)
       (labels ((norm (l ab)
-                 (let ((s^ (flatten (car (s-of l)))))
                   (if (null ab)
                       '()
                       (if (member 't
-                             (mapcar (lambda (x)
-                                       (if (and (member x s^ :test #'equalp)
-                                                (member (caar ab) s^ :test #'equalp))
-                                           t
-                                           nil)) (cdr (walk-queries 0 l))))
+                             (flatten (mapcar (lambda (x)
+                                                (mapcar (lambda (s)
+                                                          (if (and (member x (flatten s) :test #'equalp)
+                                                                   (or (member (caar ab) (flatten s) :test #'equalp)
+                                                                       (member (walk* (caar ab) (car (s-of l))) (flatten s) :test #'equalp)))
+                                                           t
+                                                           nil))(car (s-of l)))) (cdr (walk-queries 0 l)))))
                           (cons (car ab) (norm l (cdr ab)))
-                          (norm l (cdr ab)))))))
+                          (norm l (cdr ab))))))
               (norm st (car (cdddar st)))))
 
 (defun v>l (l) (cons (car l) (coerce->l (cadr l))))
