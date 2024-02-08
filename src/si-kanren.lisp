@@ -78,12 +78,14 @@
                                           ((member nil TY)
                                            (unit (make-st
                                                   (cons s^ (c-of st))
-                                                  (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)))
+                                                  (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (a-of st)
+                                                                 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)))))
                                                   (remove nil rt)
                                                   (remove nil ra))))
                                           (T (unit (make-st
                                                          (cons s^ (c-of st))
-                                                         (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)))
+                                                         (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (a-of st)
+                                                                       (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)))))
                                                          TY
                                                          (remove nil ra)))))) rt)))))
           mzero))))
