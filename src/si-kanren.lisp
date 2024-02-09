@@ -66,7 +66,7 @@
   (lambda (st)
     (let ((s^ (unify u v (s-of st))))
       (if (not (equal s^ '(())))
-          (let ((nds (normalize-d<s/t/a #'disequality s^ (d-of st))))
+          (let ((nds (normalize-d<s/t/a #'disequality s^ (d-of st) (s-of st))))
             (if (member 'err nds)
                 nil
                 (let ((rt (reform-T (ty-of st) s^))
@@ -79,13 +79,13 @@
                                            (unit (make-st
                                                   (cons s^ (c-of st))
                                                   (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (a-of st)
-                                                                 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)))))
+                                                                 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) (s-of st))) (s-of st)))
                                                   (remove nil rt)
                                                   (remove nil ra))))
                                           (T (unit (make-st
                                                          (cons s^ (c-of st))
                                                          (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (a-of st)
-                                                                       (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)))))
+                                                                       (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)(s-of st)))(s-of st)))
                                                          TY
                                                          (remove nil ra)))))) rt)))))
           mzero))))
@@ -137,7 +137,7 @@
       '()
       (cons (car s^) (subtract-s (cdr s^) s))))
 
-(defun disequality (u v s)
+(defun disequality (u v s st)
   (let ((s^ (unify u v s)))
       (if (equal s^ '(()))
           '(())
@@ -148,23 +148,24 @@
 
 (defun =/= (u v)
   (lambda (st)
-    (let ((d^ (disequality u v (s-of st))))
+    (let ((d^ (disequality u v (s-of st) st)))
       (if d^
           (if (equal d^ '(()))
               (unit st)
               (unit (make-st
                           (cons (s-of st) (c-of st))
                           (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (a-of st)
-                                                 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? (ty-of st) (cons d^ (d-of st))))))
+                                                 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? (ty-of st) (cons d^ (d-of st))(s-of st)))(s-of st)))
                           (ty-of st)
                           (a-of st))))
        mzero))))
 
-(defun normalize-d<s/t/a (f s ds)
+(defun normalize-d<s/t/a (f s ds st)
  (bind (mapm (lambda (es)
                (let ((d^ (funcall f (mapcar #'car es)
                                     (mapcar #'cdr es)
-                                    s)))
+                                    s
+                                    st)))
                   (if d^
                       (if (equal d^ '(()))
                           '(())
@@ -226,7 +227,7 @@
                                        (append rt '(()))
                                        (append rt '((err)))))))) rt)))))
 
-(defun subsumed-d-pr/T? (u v TY)
+(defun subsumed-d-pr/T? (u v TY st)
       (cond
          ((cadr v)
           (let ((d (list (cons (car u) (car v)) (cons (cadr u) (cadr v)))))
@@ -355,7 +356,7 @@
           (funcall (lambda (T+)
                      (cond ((equal T+ "same") st)
                            ((equal T+ "err") '())
-                           (T (let ((d (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? (cons (car T+) (ty-of st)) (d-of st)))))
+                           (T (let ((d (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? (cons (car T+) (ty-of st)) (d-of st)(s-of st)))))
                                   (type->diseq T+ (a-of st) d st '() '() (ty-of st)))))) ty)))
 
 (defun type->diseq (ty+ a d s d+ a+ ty);for a new type, after an absento constraint
@@ -421,11 +422,11 @@
                           (ext-A-with-pred x tag a-pred s ad)))
                        (T (ext-A x tag s ad))))))))
 
-(defun subsumed-d-pr/A? (u v A)
+(defun subsumed-d-pr/A? (u v A S)
       (cond
          ((cdr u)
-          (let ((sc^ (assoc (car u) A :test #'equalp))
-                (sc^^ (assoc (cadr u) A :test #'equalp))
+          (let ((sc^ (assoc (car u) (walk* A S) :test #'equalp))
+                (sc^^ (assoc (cadr u) (walk* A S) :test #'equalp))
                 (d (list (cons (car u) (car v)) (cons (cadr u) (cadr v)))))
              (if (or sc^ sc^^)
                 (if sc^
@@ -437,8 +438,16 @@
                            '(())
                             d)))
                 d)))
-         ((lvar? v) '())
-         (T (let ((sc (assoc  (car u) A :test #'equalp))
+         ((lvar? (car v))
+          (let ((sc^ (assoc (car u) A :test #'equalp))
+                (sc^^ (assoc (car v) A :test #'equalp))
+                (d (list(cons (car u) (car v)))))
+              (if (and sc^ sc^^)
+                  (if (equal (tag-of sc^)(tag-of sc^^))
+                      d
+                      '(()))
+                  d)))
+         (T (let ((sc (assoc  (car u) (walk* A S) :test #'equalp))
                   (d^ (cons (car u) (car v))))
               (if sc
                   (if (tag=? (tag-of sc) (car v))
@@ -450,7 +459,7 @@
   (let ((u (walk u (s-of st))))
     (cond ((lvar? u) (let ((A+ (ext-A u tag (s-of st) a)))
                        (cond ((null? A+) st)
-                             (T (let ((d (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? A+ (d-of st)))))
+                             (T (let ((d (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? A+ (d-of st) (s-of st)))))
                                   (absento->diseq A+ s/c d ty a))))))
           ((pair? u) (let ((au (car u))
                            (du (cdr u)))
