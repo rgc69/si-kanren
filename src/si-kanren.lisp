@@ -100,51 +100,21 @@
                          (funcall (lambda (TY)
                                     (cond ((member '(err) TY :test #'equal ) mzero)
                                           ((member nil TY)
-                                           (let* ((ty^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)))
-                                                  (d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra) ty^ s^))))
-                                             (unit (make-st
+                                           (unit (make-st
+                                                  (cons s^ (c-of st))
+                                                  (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
+                                                                (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))
+                                                  ty
+                                                  (remove-duplicates (remove nil (post==-a<t ty (remove nil ra) s^))
+                                                                     :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))))))
+                                          (T (unit (make-st
                                                     (cons s^ (c-of st))
-                                                    d^
+                                                    (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
+                                                                  (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))
                                                     ty
-                                                    (remove-duplicates (remove nil (post==-a<t ty (remove nil ra) s^))
-                                                                       :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))))))
-                                          (T (let* ((ty^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)))
-                                                    (d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra) ty^ s^))))
-                                               (unit (make-st
-                                                      (cons s^ (c-of st))
-                                                      d^
-                                                      ty
-                                                      (apply 'concatenate 'list (remove-duplicates (remove nil (post==-a<t ty (remove nil ra) s^))
-                                                                                                  :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))))))))) (remove nil rt))))))
+                                                    (apply 'concatenate 'list (remove-duplicates (remove nil (post==-a<t ty (remove nil ra) s^))
+                                                                                                :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))))))))) (remove nil rt))))))
           mzero))))
-
-;(defun == (u v)
-  ;(lambda (st)
-    ;(let ((s^ (unify u v (s-of st))))
-      ;(if (not (equal s^ '(())))
-          ;(let ((nds (normalize-d<s/t/a #'disequality s^ (d-of st) (s-of st))))
-            ;(if (member 'err nds)
-                ;nil
-                ;(let ((rt (reform-T (ty-of st) s^))
-                      ;(ra (reform-a (a-of st) s^)))
-                     ;(if (member '(err) ra)
-                         ;nil
-                         ;(funcall (lambda (TY)
-                                    ;(cond ((member '(err) TY :test #'equal ) mzero)
-                                          ;((member nil TY)
-                                           ;(unit (make-st
-                                                  ;(cons s^ (c-of st))
-                                                  ;(remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
-                                                                 ;(remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))
-                                                  ;(remove nil TY)
-                                                  ;(post==-a<t TY (remove nil ra) s^))))
-                                          ;(T (unit (make-st
-                                                         ;(cons s^ (c-of st))
-                                                         ;(remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
-                                                                          ;(remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))
-                                                         ;TY
-                                                         ;(post==-a<t TY (remove nil ra) s^)))))) (remove nil rt))))))
-          ;mzero))))
 
 (defun mplus ($1 $2)   ;like appendo
   (cond
