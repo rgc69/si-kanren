@@ -347,9 +347,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;; Normalization of the Absento Store  ;;;;;;;;;;;;;;;;;;;;;
 
+;;;Only relevant values in the absento store, connected with main variables in S
 (defun normalize-A (st)
       (labels ((norm (l ab)
-                 ;(let ((s^ (flatten (car (s-of l)))))
                   (if (null ab)
                       '()
                       (if (member 't
