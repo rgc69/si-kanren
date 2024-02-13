@@ -62,6 +62,30 @@
           (a (a-of st)))
         (funcall (funcall f (lvar c)) `((,(caar st) . ,(+ c 1)) ,d ,ty ,a)))))
 
+;;; To check post-unification in the absento and type stores
+(defun post==-a<t (ty ab s)
+             (if (null? ab)
+                 '()
+                 (if (null? ty)
+                     (unit ab)
+                     (let ((seen '()))
+                       (mapcan (lambda (x)
+                                  (mapcar (lambda (a)(let ((u (walk* (car a) s)))
+                                                      (if (lvar=? u (car x))
+                                                          (if (funcall (pred-of x) (tag-of a))
+                                                              (if (null? seen)
+                                                                  (setq ab (cons a '()))
+                                                                  (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
+                                                                      nil
+                                                                      (setq ab (cons a '()))))
+                                                              (progn (setq seen (cons a seen))
+                                                                     nil))
+                                                          (if (null? seen)
+                                                              (setq ab (cons  a '()))
+                                                              (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
+                                                                  nil
+                                                                  (setq ab (cons a '()))))))) ab)) ty)))))
+
 (defun == (u v)
   (lambda (st)
     (let ((s^ (unify u v (s-of st))))
@@ -76,19 +100,51 @@
                          (funcall (lambda (TY)
                                     (cond ((member '(err) TY :test #'equal ) mzero)
                                           ((member nil TY)
-                                           (unit (make-st
-                                                  (cons s^ (c-of st))
-                                                  (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (a-of st)
-                                                                 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) (s-of st))) (s-of st)))
-                                                  (remove nil rt)
-                                                  (remove nil ra))))
-                                          (T (unit (make-st
-                                                         (cons s^ (c-of st))
-                                                         (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (a-of st)
-                                                                       (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds)(s-of st)))(s-of st)))
-                                                         TY
-                                                         (remove nil ra)))))) rt)))))
+                                           (let* ((ty^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)))
+                                                  (d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra) ty^ s^))))
+                                             (unit (make-st
+                                                    (cons s^ (c-of st))
+                                                    d^
+                                                    ty
+                                                    (remove-duplicates (remove nil (post==-a<t ty (remove nil ra) s^))
+                                                                       :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))))))
+                                          (T (let* ((ty^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)))
+                                                    (d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra) ty^ s^))))
+                                               (unit (make-st
+                                                      (cons s^ (c-of st))
+                                                      d^
+                                                      ty
+                                                      (apply 'concatenate 'list (remove-duplicates (remove nil (post==-a<t ty (remove nil ra) s^))
+                                                                                                  :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))))))))) (remove nil rt))))))
           mzero))))
+
+;(defun == (u v)
+  ;(lambda (st)
+    ;(let ((s^ (unify u v (s-of st))))
+      ;(if (not (equal s^ '(())))
+          ;(let ((nds (normalize-d<s/t/a #'disequality s^ (d-of st) (s-of st))))
+            ;(if (member 'err nds)
+                ;nil
+                ;(let ((rt (reform-T (ty-of st) s^))
+                      ;(ra (reform-a (a-of st) s^)))
+                     ;(if (member '(err) ra)
+                         ;nil
+                         ;(funcall (lambda (TY)
+                                    ;(cond ((member '(err) TY :test #'equal ) mzero)
+                                          ;((member nil TY)
+                                           ;(unit (make-st
+                                                  ;(cons s^ (c-of st))
+                                                  ;(remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
+                                                                 ;(remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))
+                                                  ;(remove nil TY)
+                                                  ;(post==-a<t TY (remove nil ra) s^))))
+                                          ;(T (unit (make-st
+                                                         ;(cons s^ (c-of st))
+                                                         ;(remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
+                                                                          ;(remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))
+                                                         ;TY
+                                                         ;(post==-a<t TY (remove nil ra) s^)))))) (remove nil rt))))))
+          ;mzero))))
 
 (defun mplus ($1 $2)   ;like appendo
   (cond
@@ -205,12 +261,12 @@
                ; Is it same as the new constraint? Then do not extend the store
                ((tag=? t-tag tag) "same")
                ; Is it conflicting with the new constraint? Then fail.
-               (T "err")))
+               (T '((error)))))
              ; The current constraint is not on x, continue going through
              ; rest of the constraints
            (T (ext-TY x tag pred TY-next))))))))
 
-(defun reform-T (TY S)
+(defun reform-T (TY S) ;; after a new symbolo/numbero declaration
   (cond ((null? TY) '())
         (T (let ((rt (reform-T (cdr TY) S)))
              (funcall (lambda (T0)
@@ -355,7 +411,7 @@
      (let ((ty (ext-TY u tag pred (ty-of st))))
           (funcall (lambda (T+)
                      (cond ((equal T+ "same") st)
-                           ((equal T+ "err") '())
+                           ((equal T+ '((error))) '())
                            (T (let ((d (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? (cons (car T+) (ty-of st)) (d-of st)(s-of st)))))
                                   (type->diseq T+ (a-of st) d st '() '() (ty-of st)))))) ty)))
 
@@ -364,7 +420,7 @@
       (if (null? d)
           (make-st (s/c-of s) (remove nil d+) (cons (car ty+) ty) a+)
           (make-st (s/c-of s) (apply 'concatenate 'list(list d d+)) (cons (car ty+) ty) a+))
-      (if (lvar=? (caar ty+) (caar a))
+      (if (lvar=? (caar ty+) (walk* (caar a) (s-of s)))
           (if (funcall (pred-of (car ty+)) (tag-of (car a)))
               (let ((d^ (list (unit (cons (caar ty+)(tag-of (car a)))) d+)))
                  (type->diseq ty+ (cdr a) d s d^ a+ ty))
@@ -501,7 +557,7 @@
          `(,d . ,a+))
         (T (let ((ty* (car ty)))
                 (if (caar a+)
-                    (if (lvar=? (car ty*) (caar a+))
+                    (if (lvar=? (car ty*) (walk* (caar a+) s))
                         (if (funcall (pred-of ty*) (tag-of a+))
                             (absento->diseq/x+ (caar a+) '() s d a+)
                             'rem)
