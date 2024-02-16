@@ -62,29 +62,6 @@
           (a (a-of st)))
         (funcall (funcall f (lvar c)) `((,(caar st) . ,(+ c 1)) ,d ,ty ,a)))))
 
-;;; To check post-unification in the absento and type stores
-(defun post==-a<t (ty ab s)
-             (if (null? ab)
-                 '()
-                 (if (null? ty)
-                     (unit ab)
-                     (let ((seen '()))
-                       (mapcan (lambda (x)
-                                  (mapcar (lambda (a)(let ((u (walk* (car a) s)))
-                                                      (if (lvar=? u (car x))
-                                                          (if (funcall (pred-of x) (tag-of a))
-                                                              (if (null? seen)
-                                                                  (setq ab (cons a '()))
-                                                                  (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
-                                                                      nil
-                                                                      (setq ab (cons a '()))))
-                                                              (progn (setq seen (cons a seen))
-                                                                     nil))
-                                                          (if (null? seen)
-                                                              (setq ab (cons  a '()))
-                                                              (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
-                                                                  nil
-                                                                  (setq ab (cons a '()))))))) ab)) ty)))))
 
 (defun == (u v)
   (lambda (st)
@@ -99,21 +76,15 @@
                          nil
                          (funcall (lambda (TY)
                                     (cond ((member '(err) TY :test #'equal ) mzero)
-                                          ((member nil TY)
-                                           (unit (make-st
-                                                  (cons s^ (c-of st))
-                                                  (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
-                                                                (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))
-                                                  ty
-                                                  (remove-duplicates (remove nil (post==-a<t ty (remove nil ra) s^))
-                                                                     :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))))))
-                                          (T (unit (make-st
-                                                    (cons s^ (c-of st))
-                                                    (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
-                                                                  (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))
-                                                    ty
-                                                    (apply 'concatenate 'list (remove-duplicates (remove nil (post==-a<t ty (remove nil ra) s^))
-                                                                                                :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))))))))) (remove nil rt))))))
+                                          (T (let ((d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
+                                                                                             (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))))
+                                               (multiple-value-bind (ab ds)
+                                                 (post==-a<t>d/a ty (remove nil ra) s^ d^)
+                                                 (unit (make-st
+                                                         (cons s^ (c-of st))
+                                                         ds
+                                                         ty
+                                                         ab))))))) (remove nil rt))))))
           mzero))))
 
 (defun mplus ($1 $2)   ;like appendo
@@ -577,3 +548,40 @@
                          (funcall (reform-A+ du A S) ra+)
                          '(err)))))
               (T (and (funcall pred u) aol))))))
+
+;;; To check post-unification in the absento and type stores
+(defun post==-a<t>d/a (ty ab s ds)
+          (let ((seen '())
+                (ab^ '()))
+            (if (null? ab)
+                (unit ds)
+                (if (null? ty)
+                    (progn
+                      (unit ds)
+                      (unit ab))
+                    (mapcan (lambda (x)
+                              (mapcar (lambda (a)
+                                        (let ((u (walk* (car a) s))
+                                              (v (walk* (car x) s)))
+                                            (if (or (lvar=? u (car x))
+                                                    (lvar=? u v))
+                                                (if (funcall (pred-of x) (tag-of a))
+                                                    (if (null? seen)
+                                                        (progn (setq ds (cons (unit (cons (car a) (tag-of a))) ds))
+                                                               (setq seen (cons a seen))
+                                                               (setq ab^ (remove a ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))))
+                                                        (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
+                                                            nil
+                                                            (progn (setq ds (cons (unit (cons (car a) (tag-of a))) ds))
+                                                                   (setq seen (cons a seen))
+                                                                   (setq ab^ (remove a ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))))))
+                                                    (if (null? seen)
+                                                        (progn (setq seen (cons a seen))
+                                                               (setq ab^ (remove a ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))))
+                                                        (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
+                                                            nil
+                                                            (progn (setq seen (cons a seen))
+                                                                   (setq ab^ (remove a ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))))))))
+                                                (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
+                                                    nil
+                                                    (setq ab^ (cons a ab^)))))) ab)) ty))) (values (remove-duplicates ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))))))
