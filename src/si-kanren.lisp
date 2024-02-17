@@ -87,6 +87,19 @@
                                                          ab))))))) (remove nil rt))))))
           mzero))))
 
+(run 1 (q) (fresh (x y)
+                  (absento 'cat x)
+                  (symbolo x)
+                  (absento 'bat y)
+                  (== x y)
+                  (== q `(,x ,y))))
+
+(let* ((s '((#(1) #(2) #(3)) (#(0) #(1))))
+       (ty '((#(2) sym . symbolp)))
+       (ab (remove nil (reform-a '((#(3) bat . (lambda (x) (not (and (tag? x) (tag=? x tag)))))) s))))
+  (post==-a<t>d/a ty ab s nil))
+
+
 (defun mplus ($1 $2)   ;like appendo
   (cond
     ((null? $1) $2)
@@ -584,4 +597,4 @@
                                                                    (setq ab^ (remove a ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))))))))
                                                 (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
                                                     nil
-                                                    (setq ab^ (cons a ab^)))))) ab)) ty))) (values (remove-duplicates ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))))))
+                                                    (setq ab^ (cons a ab^)))))) ab)) ty))) (values (remove-duplicates ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))) ds)))
