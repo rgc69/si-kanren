@@ -567,7 +567,7 @@
                                                     (lvar=? u v))
                                                 (if (funcall (pred-of x) (tag-of a))
                                                     (if (null? seen)
-                                                        (progn (setq ds (cons (unit (cons (car a) (tag-of a))) ds))
+                                                        (progn (setq ds (cons (unit (cons u (tag-of a))) ds))
                                                                (setq seen (cons a seen))
                                                                (setq ab^ (remove a ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))))
                                                         (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
