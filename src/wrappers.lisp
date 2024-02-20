@@ -64,16 +64,21 @@
                  (walk* v (reify-s v '())))))
     (o (cons (lvar 0)
          (cond
-              ((and (null? (d-of st)) (null? at))
-               nil)
+              ((and  (null? (d-of st)) (null? at))
+               '())
               ((null? (d-of st))
                `(with ,at))
               ((null? at)
-               `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
-                              (cadr st))))
+               `(where  ,(mapcar (lambda (mini) `,(if (equal (cdar mini) nil)
+                                                      `,(mapcar (lambda (dis) (unit (remove nil `(=/= ,(car dis) ,(cdr dis))))) mini)
+                                                      `(and . ,(mapcar (lambda (dis) (unit (remove nil `(=/= ,(car dis) ,(flatten (cdr dis)))))) mini))))
+                              (d-of st))))
               ((and (d-of st) at)
-               (cons `(where  ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) `(=/= ,(car dis) ,(cdr dis))) mini))
-                                (cadr st))) `(with ,at)))
+               (if (not (equal (cdar (d-of st)) nil))
+                   (cons `(where  ,(mapcar (lambda (mini) `(and . ,(mapcar (lambda (dis) (unit (remove nil `(=/= ,(car dis) ,(flatten (cdr dis)))))) mini)))
+                                    (d-of st))) `(with ,at))
+                   (cons `(where ,(mapcar (lambda (mini) `,(mapcar (lambda (dis) (unit (remove nil `(=/= ,(car dis) ,(cdr dis))))) mini))
+                                          (d-of st))) `(with ,at))))
               (T nil)))))))
 
 (defun mK-reify (st)
@@ -240,7 +245,19 @@
    '()))
 
 (defun norm=lvars (d)
-  (remove-duplicates d :test #'equal-lists))
+  (let ((seen '())
+        (d^ '()))
+    (mapcar (lambda (x)
+              (if (null? seen)
+                  (progn (setq seen (cons (car x) seen))
+                         (setq d^ (cons x d^)))
+                  (if (cdr x)
+                      (setq d^ (cons x d^))
+                      (if (member (car x) seen :test #'equal-lists)
+                          '()
+                          (progn
+                            (setq seen (append x seen))
+                            (setq d^ (cons x d^))))))) d) d^))
 
         ;;;;;;;;;;;;;   Getting rid of "ghost" vars ;;;;;;;;;;;;;;;;;
 
@@ -277,20 +294,22 @@
         (rec x nil)))
 
 (defun flat-d (d)
-         (apply 'concatenate 'list
-                (apply 'concatenate 'list d)))
+        (apply 'concatenate 'list d))
 
+;;; Normalize-fresh, together with norm=lvars, is used to normalize the
+;;; disequality store, manteining the original structure, so that
+;;; we can pass it to REIFY-STATE/1ST-VAR for a prettier reification
 (defun normalize-fresh (st)
-      (labels ((norm (l d)
-                 (if (null d)
-                     '()
-                  (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
-                      (norm l (cdr d))
-                      (if (unused (car d) l)
-                          (norm l (cdr d))
-                          (cons (car d)(norm l (cdr d))))))))
-        (let ((d^ (flat-d (remove-subsumed (cadar st)))))
-         (norm st d^))))
+      (let ((d^ (flat-d (remove-subsumed (cadar st)))))
+        (labels ((norm (d)
+                  (if (null d)
+                      '()
+                      (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar st)))) (cdr (walk-queries 0 st))))))
+                          (norm (cdr d))
+                          (if (unused (car d) st)
+                              (norm (cdr d))
+                              (setq d (cons (car d)(norm (cdr d)))))))))
+                (remove nil (mapcar #'norm d^)))))
 
           ;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;
 
@@ -388,3 +407,8 @@
                      (mapcar #'sort-part (partition* (drop-pred-t/a (normalize-ty st))))
                      (part/A (drop-pred-t/a (normalize-a st))))
            (normalize-conde (cdr st)))))
+;(runno 1 (q)
+    ;(=/= q '())
+    ;(=/= q '(foo))
+    ;(=/= q 5))
+;(normalize-fresh *)

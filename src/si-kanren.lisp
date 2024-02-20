@@ -79,7 +79,7 @@
                                           (T (let ((d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
                                                                                              (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))))
                                                (multiple-value-bind (ab ds)
-                                                 (check-absento/disequality ty (remove nil ra) s^ d^)
+                                                 (check-a/t->disequality ty (remove nil ra) s^ d^)
                                                  (unit (make-st
                                                          (cons s^ (c-of st))
                                                          ds
@@ -355,7 +355,7 @@
                            ((equal T+ '((error))) '())
                            (T (let ((d (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? (cons (car T+) (ty-of st)) (d-of st)(s-of st)))))
                                  (multiple-value-bind (ab ds)
-                                   (check-absento/disequality (cons (car T+) (ty-of st)) (a-of st) (s-of st) d)
+                                   (check-a/t->disequality (cons (car T+) (ty-of st)) (a-of st) (s-of st) d)
                                    (make-st
                                              (s/c-of st)
                                              ds
@@ -451,7 +451,7 @@
                        (cond ((null? A+) st)
                              (T (let ((d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (append A+ a) d (s-of st)))))
                                  (multiple-value-bind (ab ds)
-                                   (check-absento/disequality (remove nil ty) (append A+ a) (s-of st) d^)
+                                   (check-a/t->disequality (remove nil ty) (append A+ a) (s-of st) d^)
                                    (make-st
                                              s/c
                                              ds
@@ -506,8 +506,8 @@
                          '(err)))))
               (T (and (funcall pred u) aol))))))
 
-;;; To check post-unification in the absento and type stores
-(defun check-absento/disequality (ty ab s ds)
+;;; To check for disequality comparing the absento and the type stores
+(defun check-a/t->disequality (ty ab s ds)
           (let ((seen '())
                 (ab^ '()))
             (if (null? ab)
