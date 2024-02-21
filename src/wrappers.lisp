@@ -418,8 +418,3 @@
                      (mapcar #'sort-part (partition* (drop-pred-t/a (normalize-ty st))))
                      (part/A (drop-pred-t/a (normalize-a st))))
            (normalize-conde (cdr st)))))
-;(runno 1 (q)
-    ;(=/= q '())
-    ;(=/= q '(foo))
-    ;(=/= q 5))
-;(normalize-fresh *)
