@@ -75,7 +75,7 @@
                      (if (member '(err) ra)
                          nil
                          (funcall (lambda (TY)
-                                    (cond ((member '(err) TY :test #'equal ) mzero)
+                                    (cond ((equal TY "err" ) mzero)
                                           (T (let ((d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
                                                                                              (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))))
                                                (multiple-value-bind (ab ds)
@@ -202,7 +202,7 @@
                ; Is it same as the new constraint? Then do not extend the store
                ((tag=? t-tag tag) "same")
                ; Is it conflicting with the new constraint? Then fail.
-               (T '((error)))))
+               (T "err")))
              ; The current constraint is not on x, continue going through
              ; rest of the constraints
            (T (ext-TY x tag pred TY-next))))))))
@@ -352,7 +352,7 @@
      (let ((ty (ext-TY u tag pred (ty-of st))))
           (funcall (lambda (T+)
                      (cond ((equal T+ "same") st)
-                           ((equal T+ '((error))) '())
+                           ((equal T+ "err") '())
                            (T (let ((d (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? (cons (car T+) (ty-of st)) (d-of st)(s-of st)))))
                                  (multiple-value-bind (ab ds)
                                    (check-a/t->disequality (cons (car T+) (ty-of st)) (a-of st) (s-of st) d)
