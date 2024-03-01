@@ -220,9 +220,7 @@
                                                ((equal et "same") rt)
                                                (T (funcall (lambda (T+) (append T+ T0)) et)))))
                                        (T "err")))
-                                (T (if (or (funcall pred  u) rt)
-                                       (append rt '(()))
-                                       (append rt '((err)))))))) rt)))))
+                                (T (and (funcall pred u) rt))))) rt)))))
 
 (defun subsumed-d-pr/T? (u v TY st)
       (cond
