@@ -307,6 +307,16 @@
 (defun flat-d (d)
         (apply 'concatenate 'list d))
 
+(defun member-nested (el l)
+  "whether el is a member of l, el can be atom or cons,
+   l can be list of atoms or not"
+      (cond
+       ((null l) nil)
+       ((equalp el (car l)) t)
+       ((consp (car l)) (or (member-nested el (car l))
+                            (member-nested el (cdr l))))
+       (t (member-nested el (cdr l)))))
+
 ;;; Normalize-fresh, together with norm=lvars, is used to normalize the
 ;;; disequality store, manteining the original structure, so that
 ;;; we can pass it to REIFY-STATE/1ST-VAR for a prettier reification
@@ -315,7 +325,8 @@
         (labels ((norm (d)
                   (if (null d)
                       '()
-                      (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar st)))) (cdr (walk-queries 0 st))))))
+                      (if (and (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar st)))) (cdr (walk-queries 0 st))))))
+                              (not (member 't (flatten (mapcar (lambda (x) (member-nested (caar d) (walk* x (caaar st)))) (cdr (walk-queries 0 st)))))))
                           (norm (cdr d))
                           (if (unused (car d) st)
                               (norm (cdr d))
@@ -340,7 +351,8 @@
       (labels ((norm (l ty)
                  (if (null ty)
                      '()
-                     (if (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar ty) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
+                     (if (and (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar ty) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
+                             (not (member 't (mapcar (lambda (x) (member-nested (caar ty) (walk* x (caaar l)))) (cdr (walk-queries 0 l))))))
                          (norm l (cdr ty))
                          (cons (car ty)(norm l (cdr ty)))))))
               (norm st (caddar st))))
