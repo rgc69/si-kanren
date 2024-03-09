@@ -312,6 +312,10 @@
    l can be list of atoms or not"
       (cond
        ((null l) nil)
+       ((not (consp l)) nil)
+       ((dotted-pair-p l)
+        (if (or (equalp el (car l)) (equalp el (cdr l)))
+            t))
        ((equalp el (car l)) t)
        ((consp (car l)) (or (member-nested el (car l))
                             (member-nested el (cdr l))))
