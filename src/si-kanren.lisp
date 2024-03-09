@@ -72,7 +72,7 @@
                 nil
                 (let ((rt (reform-T (ty-of st) s^))
                       (ra (reform-a (a-of st) s^)))
-                     (if (member '(err) ra)
+                     (if (equal "err" ra)
                          nil
                          (funcall (lambda (TY)
                                     (cond ((equal TY "err" ) mzero)
@@ -135,6 +135,7 @@
       (cons (car s^) (subtract-s (cdr s^) s))))
 
 (defun disequality (u v s st)
+  (declare (ignore st))
   (let ((s^ (unify u v s)))
       (if (equal s^ '(()))
           '(())
@@ -222,7 +223,7 @@
                                        (T "err")))
                                 (T (and (funcall pred u) rt))))) rt)))))
 
-(defun subsumed-d-pr/T? (u v TY st)
+(defun subsumed-d-pr/T? (u v TY st)(declare (ignore st))
       (cond
          ((cadr v)
           (let ((d (list (cons (car u) (car v)) (cons (cadr u) (cadr v)))))
@@ -386,6 +387,8 @@
 
 (defun ext-A-with-pred (x tag pred s a)
   (cond ((null? a) `((,x . (,tag . ,pred))))
+        ((equal a "err")
+         "err")
         (T (let ((ac (car A)))
              (let ((a-tag (tag-of ac)))
                (cond ((equal (walk (car ac) s) x)
@@ -398,6 +401,8 @@
   (cond ((null? a)
          (let ((pred (make-pred-A tag)))
            `((,x . (,tag . ,pred)))))
+        ((equal a "err")
+         nil)
         (T (let ((ac (car a))
                  (ad (cdr a)))
                (let ((a-tag (tag-of ac)))
@@ -482,27 +487,35 @@
 (defun reform-A (A S)
   (cond ((null? A) '(()))
         ((let ((ra (reform-A (cdr A) S)))
-          (funcall (reform-A+ (car (car A)) A S) ra)))
-        (T '((err)))))
+          (if (equal ra "err")
+              "err"
+              (funcall (reform-A+ (car (car A)) A S) ra))))
+        (T "err")))
 
 (defun reform-A+ (x A S)
   (lambda (aol)
-    (let ((u (walk x S))
-          (tag (tag-of (car A)))
-          (pred (pred-of (car A))))
-        (cond ((lvar? u)
-               (let ((exa (ext-A-with-pred x tag pred S aol)))
-                   (if exa
-                       (funcall (lambda (A+) (append A+ aol)) exa)
-                       '(err))))
-              ((pair? u)
-               (let ((au (car u))
-                     (du (cdr u)))
-                    (let ((ra+ (funcall (reform-A+ au A S) aol)))
-                     (if ra+
-                         (funcall (reform-A+ du A S) ra+)
-                         '(err)))))
-              (T (and (funcall pred u) aol))))))
+    (if (not (equal aol "err"))
+        (let ((u (walk x S))
+              (tag (tag-of (car A)))
+              (pred (pred-of (car A))))
+            (cond
+                  ((not (or (lvar? u) (pair? u)))
+                   "err")
+                  ((equal u nil) nil)
+                  ((lvar? u)
+                   (let ((exa (ext-A-with-pred x tag pred S aol)))
+                       (if (and exa (not (equal exa "err")))
+                           (funcall (lambda (A+) (append A+ aol)) exa)
+                           "err")))
+                  ((pair? u)
+                   (let ((au (car u))
+                         (du (cdr u)))
+                        (let ((ra+ (funcall (reform-A+ au A S) aol)))
+                         (if (and ra+ (not (equal ra+ '(()))))
+                             (funcall (reform-A+ du A S) ra+)
+                             "err"))))
+                  (T (and (funcall pred u) aol))))
+        "err")))
 
 ;;; To check for disequality comparing the absento and the type stores
 (defun check-a/t->disequality (ty ab s ds)
@@ -539,4 +552,4 @@
                                                                    (setq ab^ (remove a ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))))))))
                                                 (if (member a seen :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil)))
                                                     nil
-                                                    (setq ab^ (cons a ab^)))))) ab)) ty))) (values (remove-duplicates ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))) ds)))
+                                                    (setq ab^ (cons a ab^)))))) (remove nil ab))) ty))) (values (remove-duplicates ab^ :test #'(lambda (l1 l2) (if (and (equalp (car l1) (car l2)) (equal (cadr l1) (cadr l2))) t nil))) ds)))
