@@ -79,11 +79,11 @@
                                           (T (let ((d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
                                                                                              (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))))
                                                (multiple-value-bind (ab ds)
-                                                 (check-a/t->disequality ty (remove nil ra) s^ d^)
+                                                 (check-a/t->disequality TY (remove nil ra) s^ d^)
                                                  (unit (make-st
                                                          (cons s^ (c-of st))
                                                          ds
-                                                         ty
+                                                         TY
                                                          ab))))))) (remove nil rt))))))
           mzero))))
 
@@ -185,200 +185,136 @@
 (defun pred-of (ty)
    (cddr ty))
 
+(defun ty-merge (a b)
+    "Merge two type constraints for the *same* lvar.
+     Returns either a merged entry or \"err\" if incompatible."
+      (cond
+            ((null a) b)
+                ((null b) a)
+                    ((equal (tag-of a) (tag-of b)) a)
+                        (t "err")))
+
 (defun tag? (tag)
   (symbolp tag))
 
-(defun ext-TY (x tag pred TY)
-  (cond
-   ; Ran out of type constraints without any conflicts, add new type constraint
-   ; to the store (because the type constraint store is empty).
-   ((null? TY) `((,x . (,tag . ,pred))))
-   (T (let ((ty (car TY))
-            (TY-next (cdr TY)))
-        (let ((t-tag (tag-of ty)))
+(defun reform-T (TY S)
+  "Canonicalize + check the type store TY under substitution S.
+
+Returns:
+  - a normalized TY list (possibly empty)
+  - the string \"err\" if a constraint is violated or conflicts arise
+
+A TY entry is (lvar . (tag . pred)) i.e. (x tag . pred)."
+  (labels ((merge-entry (existing tag pred)
+             ;; existing is (x tag0 . pred0)
+             ;; Compatible only if tag matches.
+             (if (tag=? (tag-of existing) tag)
+                 existing
+                 "err")))
+    (let ((out '()))
+      (dolist (e TY (nreverse out))
+        (let* ((x    (car e))
+               (tag  (tag-of e))
+               (pred (pred-of e))
+               (x*   (walk x S)))
           (cond
-            ; Is the current constraint on x?
-            ((equalp (car ty)  x)
-             (cond
-               ; Is it same as the new constraint? Then do not extend the store
-               ((tag=? t-tag tag) "same")
-               ; Is it conflicting with the new constraint? Then fail.
-               (T "err")))
-             ; The current constraint is not on x, continue going through
-             ; rest of the constraints
-           (T (ext-TY x tag pred TY-next))))))))
+            ;; still a logic var → keep/merge on representative
+            ((lvar? x*)
+             (let ((old (assoc x* out :test #'equalp)))
+               (if (null old)
+                   (push (cons x* (cons tag pred)) out)
+                   (let ((m (merge-entry old tag pred)))
+                     (if (stringp m) ; "err"
+                         (return-from reform-T "err")
+                         ;; keep store clean: replace old with merged
+                         (setf out (cons m (remove old out :test #'eq))))))))
+            ;; ground term → must satisfy pred, then drop constraint
+            (t
+             (unless (funcall pred x*)
+               (return-from reform-T "err")))))))))
 
-(defun reform-T (TY S) ;; after a new symbolo/numbero declaration
-  (cond ((null? TY) '())
-        (T (let ((rt (reform-T (cdr TY) S)))
-             (funcall (lambda (T0)
-                        (let ((u (walk (car (car TY)) S))
-                              (tag (tag-of (car TY)))
-                              (pred (pred-of (car TY))))
-                          (cond ((lvar? u)
-                                 (cond ((let ((et (ext-TY u tag pred T0)))
-                                         (cond ((equal et "err") mzero)
-                                               ((equal et "same") rt)
-                                               (T (funcall (lambda (T+) (append T+ T0)) et)))))
-                                       (T "err")))
-                                (T (and (funcall pred u) rt))))) rt)))))
+(defun ty-add (TY S x tag pred)
+  "Add the constraint (x : tag/pred) into TY under substitution S.
 
-(defun subsumed-d-pr/T? (u v TY st)(declare (ignore st))
+Returns:
+  - normalized TY (via reform-T)
+  - \"err\" on conflict/violation."
+  (let ((x* (walk x S)))
+    (cond
+      ;; ground term: check now, TY unchanged if ok (but still canonicalize)
+      ((not (lvar? x*))
+       (if (funcall pred x*)
+           (reform-T TY S)
+           "err"))
+      ;; logic var: extend then canonicalize/merge/alias-fix
+      (t
+       (reform-T (cons (cons x* (cons tag pred)) TY) S)))))
+
+(defun typeo (tag pred x)
+  "Generic type constraint goal."
+  (lambda (st)
+    (let* ((S  (S-of st))
+           (x* (walk x S)))
       (cond
-         ((cadr v)
-          (let ((d (list (cons (car u) (car v)) (cons (cadr u) (cadr v)))))
+        ;; x is a logic var: add/merge type constraint, then normalize D and check A<->D
+        ((lvar? x*)
+         (let ((TY2 (ty-add (TY-of st) S x* tag pred)))
+           (if (stringp TY2) ; \"err\"
+               mzero
+               (let* ((d2 (remove nil
+                                  (normalize-d<s/t/a #'subsumed-d-pr/T?
+                                                     TY2
+                                                     (D-of st)
+                                                     S))))
+                 (multiple-value-bind (ab ds)
+                     (check-a/t->disequality TY2 (a-of st) S d2)
+                   (unit (make-st (S/C-of st) ds TY2 ab)))))))
+        ;; x is ground: just check predicate
+        (t
+         (if (funcall pred x*) (unit st) mzero))))))
+
+
+(defun subsumed-d-pr/T? (u v TY S)
+  "Given lists U and V (same length) representing a mini-store:
+   ((u1 . v1) (u2 . v2) ...),
+   return '(()) if the conjunction is impossible under the type store TY
+   (therefore the disequality constraint is trivially satisfied).
+   Otherwise return the (walked) mini-store as a proper list of cons pairs.
+
+   NOTE: must NOT return (unit ...) here."
+  (labels
+      ((ty-entry (x) (and (lvar? x) (assoc x TY :test #'equalp)))
+
+       (typed-var-allows-term? (x term)
+         (let ((tx (ty-entry x)))
            (cond
-             ((and (lvar? (car u)) (lvar? (cadr u))(lvar? (car v))(lvar? (cadr v)))
-              (let ((sc^ (assoc (car u) TY :test #'equalp)) ;;4 lvars
-                    (sc^^ (assoc (cadr u) TY :test #'equalp))
-                    (sc^^^ (assoc (car v) TY :test #'equalp))
-                    (sc^^^^ (assoc (cadr v) TY :test #'equalp)))
-                (if (and (not (null? (tag-of sc^^))) (not (null? (tag-of sc^^^^))))
-                    (if (not (equal (tag-of sc^^) (tag-of sc^^^^)))
-                        '(())
-                        (if (and (not (null? (tag-of sc^))) (not (null? (tag-of sc^^^))))
-                            (if (not (equal (tag-of sc^) (tag-of sc^^^)))
-                                '(())
-                                d)
-                            d))
-                    (if (and (not (null? (tag-of sc^))) (not (null? (tag-of sc^^^))))
-                        (if (not (equal (tag-of sc^) (tag-of sc^^^)))
-                            '(())
-                            d)
-                      d))))
-             ((and (not (lvar? (car v)))(not (lvar? (cadr v))));2 lvars a sx
-              (let ((sc^ (assoc (car u) TY :test #'equalp))
-                    (sc^^ (assoc (cadr u) TY :test #'equalp))
-                    (d (list (cons (car u)(car v))(cons (cadr u)(cadr v)))))
-                (if (not (null? (tag-of sc^)))
-                    (if (funcall (pred-of sc^) (car v))
-                        (if (not (null? (tag-of sc^^)))
-                            (if (funcall (pred-of sc^^) (cadr v))
-                                d
-                                '(()))
-                            d)
-                        '(()))
-                    (if (not (null? (tag-of sc^^)))
-                        (if (funcall (pred-of sc^^) (cadr v))
-                            d
-                            '(()))
-                      d))))
-             ((and (not (lvar? (car u)))(not (lvar? (cadr u))));2 lvars a dx
-              (let ((sc^ (assoc (car v) TY :test #'equalp))
-                    (sc^^ (assoc (cadr v) TY :test #'equalp))
-                    (d (list (cons (car u)(car v))(cons (cadr u)(cadr v)))))
-                (if (not (null? (tag-of sc^)))
-                    (if (funcall (pred-of sc^) (car u))
-                        (if (not (null? (tag-of sc^^)))
-                            (if (funcall (pred-of sc^^) (cadr u))
-                                d
-                                '(()))
-                            d)
-                        '(()))
-                    (if (not (null? (tag-of sc^^)))
-                        (if (funcall (pred-of sc^^) (cadr u))
-                            d
-                            '(()))
-                      d))))
-             ((not (lvar? (cadr v)))
-              (let ((sc^ (assoc (cadr u) TY :test #'equalp))
-                    (sc^^ (assoc (car u) TY :test #'equalp))
-                    (sc^^^ (assoc (car v) TY :test #'equalp))
-                    (d (list (cons (car u)(car v))(cons (cadr u)(cadr v)))))
-                (if sc^
-                    (if (not (funcall (pred-of sc^) (cadr v)))
-                        '(())
-                         (if (and (not (null? (tag-of sc^^))) (not (null? (tag-of sc^^^))))
-                             (if (not (equal (tag-of sc^^) (tag-of sc^^^)))
-                                 '(())
-                                 d)
-                             d))
-                    (if (and (not (null? (tag-of sc^^))) (not (null? (tag-of sc^^^))))
-                        (if (not (equal (tag-of sc^^) (tag-of sc^^^)))
-                            '(())
-                            d)
-                        d))))
-             ((not (lvar? (car v)))
-              (let ((sc^ (assoc (car u) TY :test #'equalp))
-                    (sc^^ (assoc (cadr u) TY :test #'equalp))
-                    (sc^^^ (assoc (cadr v) TY :test #'equalp))
-                    (d (list (cons (car u)(car v))(cons (cadr u)(cadr v)))))
-                (if sc^
-                    (if (not (funcall (pred-of sc^) (car v)))
-                        '(())
-                         (if (and (not (null? (tag-of sc^^))) (not (null? (tag-of sc^^^))))
-                             (if (not (equal (tag-of sc^^) (tag-of sc^^^)))
-                                 '(())
-                                 d)
-                             d))
-                    (if (and (not (null? (tag-of sc^^))) (not (null? (tag-of sc^^^))))
-                        (if (not (equal (tag-of sc^^) (tag-of sc^^^)))
-                            '(())
-                            d)
-                        d))))
-             (T (or (lvar? (cadr u)) (lvar? (cadr v)));1 lvar a dx di u, 1 a sx di v
-                (if (lvar? (cadr v))
-                    (let ((sc^ (assoc (car u) TY :test #'equalp)))
-                         (if sc^
-                             (if (not (funcall (pred-of sc^) (car v)))
-                               '(())
-                                d)
-                             d))
-                    (let ((sc^^ (assoc (cadr u) TY :test #'equalp)))
-                     (if sc^^
-                         (if (not (funcall (pred-of sc^^) (cadr v)))
-                           '(())
-                            d)
-                         d)))))))
-         ((lvar? (car v))
-          (let ((sc^ (assoc (car u) TY :test #'equalp))
-                (sc^^ (assoc (car v) TY :test #'equalp))
-                (d (list(cons (car u) (car v)))))
-              (if (and sc^ sc^^)
-                  (if (equal (tag-of sc^)(tag-of sc^^))
-                      d
-                      '(()))
-                  d)))
-         (T (let ((sc^ (assoc  (car u) TY :test #'equalp))
-                  (d^ (cons (car u) (car v))))
-              (if sc^
-                  (if (not (funcall (pred-of sc^) (car v)))
-                      '(())
-                      (unit d^))
-                  (unit d^))))))
+             ((null tx) t) ; no constraint on x
+             ((lvar? term)
+              (let ((tt (ty-entry term)))
+                (or (null tt)
+                    (tag=? (tag-of tx) (tag-of tt))))) ; tags must match if both known
+             (t
+              (funcall (pred-of tx) term))))) ; ground term must satisfy pred
 
-(defun make-type-constraint/x (u tag pred st)
-     (let ((ty (ext-TY u tag pred (ty-of st))))
-          (funcall (lambda (T+)
-                     (cond ((equal T+ "same") st)
-                           ((equal T+ "err") '())
-                           (T (let ((d (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? (cons (car T+) (ty-of st)) (d-of st)(s-of st)))))
-                                 (multiple-value-bind (ab ds)
-                                   (check-a/t->disequality (cons (car T+) (ty-of st)) (a-of st) (s-of st) d)
-                                   (make-st
-                                             (s/c-of st)
-                                             ds
-                                             (cons (car T+)(ty-of st))
-                                             ab))))))ty)))
+       (binding-possible? (a b)
+         ;; Evaluate possibility of equality a=b under TY
+         (cond
+           ((lvar? a) (typed-var-allows-term? a b))
+           ((lvar? b) (typed-var-allows-term? b a))
+           (t (equalp a b))))) ; both ground: equality possible only if equal
 
-(defun make-type-constraint (tag pred)
-  (lambda (u)
-    (lambda (st)
-      (let ((S (S-of st)))
-        (let ((u (walk u S)))
-          (cond ((lvar? u)
-                 (let ((t/x (make-type-constraint/x u tag pred st)))
-                    (if t/x (unit t/x)
-                            mzero)))
-                ((pair? u) mzero)
-                (T
-                  (cond
-                    ((funcall pred u) (unit st))
-                    (T mzero)))))))))
+    (let* ((u* (mapcar (lambda (x) (walk x S)) u))
+           (v* (mapcar (lambda (x) (walk x S)) v))
+           (pairs (mapcar #'cons u* v*)))
+      (if (some (lambda (pr)
+                  (not (binding-possible? (car pr) (cdr pr))))
+                pairs)
+          '(())
+          pairs))))
 
-(defun symbolo (u) (funcall (make-type-constraint 'sym #'symbolp) u))
 
-(defun numbero (u) (funcall (make-type-constraint 'num #'numberp) u))
+(defun symbolo (u) (typeo 'sym #'symbolp u))
+(defun numbero (u) (typeo 'num #'numberp u))
 
 ;;;;;;;;;;;;;;;;;;;;;;;   Absento Constraint Store   ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -416,37 +352,63 @@
                        (T (ext-A x tag s ad))))))))
 
 (defun subsumed-d-pr/A? (u v A S)
-      (cond
-         ((cdr u)
-          (let ((sc^ (assoc (car u) (walk* A S) :test #'equalp))
-                (sc^^ (assoc (cadr u) (walk* A S) :test #'equalp))
-                (d (list (cons (car u) (car v)) (cons (cadr u) (cadr v)))))
-             (if (or sc^ sc^^)
-                (if sc^
-                    (if (tag=? (tag-of sc^) (car v))
-                     '(())
-                     d)
-                    (if sc^^
-                        (if (tag=? (tag-of sc^^) (cadr v))
-                           '(())
-                            d)))
-                d)))
-         ((lvar? (car v))
-          (let ((sc^ (assoc (car u) A :test #'equalp))
-                (sc^^ (assoc (car v) A :test #'equalp))
-                (d (list(cons (car u) (car v)))))
-              (if (and sc^ sc^^)
-                  (if (equal (tag-of sc^)(tag-of sc^^))
-                      d
-                      '(()))
-                  d)))
-         (T (let ((sc (assoc  (car u) (walk* A S) :test #'equalp))
-                  (d^ (cons (car u) (car v))))
-              (if sc
-                  (if (tag=? (tag-of sc) (car v))
-                      '(())
-                      (unit d^))
-                  (unit d^))))))
+  "Given lists U and V (same length) representing a mini-store of equalities
+   ((u1 . v1) (u2 . v2) ...),
+   return '(()) if the conjunction is impossible under the absento store A
+   (therefore the disequality constraint is trivially satisfied).
+   Otherwise return the (walked) mini-store as a proper list of cons pairs.
+
+   IMPORTANT: must NOT return (unit ...) here."
+  (labels
+      ((a-entries-for (x)
+         ;; All absento constraints for logic var x (after walking keys through S).
+         (let ((x* (walk x S)))
+           (and (lvar? x*)
+                (remove-if-not
+                 (lambda (e) (equalp (walk (car e) S) x*))
+                 (walk* A S)))))
+
+       (absento-violated? (entry term)
+         ;; entry is (x . (tag . pred)), term is the value x is forced equal to.
+         (let* ((t*   (walk term S))
+                (pred (pred-of entry)))
+           ;; If pred says "allowed?", then violation is (not (pred t*))
+           (and pred (not (funcall pred t*)))))
+
+       (binding-impossible? (a b)
+         ;; a=b required by the mini-store; decide if absento makes it impossible.
+         (let ((a* (walk a S))
+               (b* (walk b S)))
+           (cond
+             ;; If both are ground and unequal, equality can't ever hold → impossible
+             ((and (not (lvar? a*)) (not (lvar? b*))
+                   (not (equalp a* b*)))
+              t)
+
+             ;; If a is a constrained lvar and b is ground-ish: check absento violations
+             ((lvar? a*)
+              (let ((ents (a-entries-for a*)))
+                (and ents
+                     (not (lvar? b*))
+                     (some (lambda (e) (absento-violated? e b*)) ents))))
+
+             ;; Symmetric case
+             ((lvar? b*)
+              (let ((ents (a-entries-for b*)))
+                (and ents
+                     (not (lvar? a*))
+                     (some (lambda (e) (absento-violated? e a*)) ents))))
+
+             ;; If both are lvars, absento alone doesn't make equality impossible
+             (t nil)))))
+
+    (let* ((u* (mapcar (lambda (x) (walk x S)) u))
+           (v* (mapcar (lambda (x) (walk x S)) v))
+           (pairs (mapcar #'cons u* v*)))
+      (if (some (lambda (pr) (binding-impossible? (car pr) (cdr pr))) pairs)
+          '(())
+          pairs))))
+
 
 (defun absento/u (u tag st s/c d ty a)
   (let ((u (walk u (s-of st))))

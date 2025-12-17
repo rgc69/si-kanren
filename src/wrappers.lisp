@@ -324,18 +324,39 @@
 ;;; Normalize-fresh, together with norm=lvars, is used to normalize the
 ;;; disequality store, manteining the original structure, so that
 ;;; we can pass it to REIFY-STATE/1ST-VAR for a prettier reification
-(defun normalize-fresh (st)
-      (let ((d^ (flat-d (remove-subsumed (cadar st)))))
-        (labels ((norm (d)
-                  (if (null d)
-                      '()
-                      (if (and (not (member 't (flatten (mapcar (lambda (x) (lvar-or-atom (caar d) (walk* x (caaar st)))) (cdr (walk-queries 0 st))))))
-                              (not (member 't (flatten (mapcar (lambda (x) (member-nested (caar d) (walk* x (caaar st)))) (cdr (walk-queries 0 st)))))))
-                          (norm (cdr d))
-                          (if (unused (car d) st)
-                              (norm (cdr d))
-                              (setq d (cons (car d)(norm (cdr d)))))))))
-                (remove nil (mapcar #'norm d^)))))
+(defun normalize-fresh (s/c/d)
+  "Normalize the disequality store for *printing*.
+
+IMPORTANT: a single disequality constraint (a mini-store) is a conjunction of
+bindings.  We must never split or partially drop bindings inside a mini-store,
+otherwise we change the meaning of the constraint (e.g. ¬(x=9 ∧ y=w) becomes
+¬(x=9)).
+
+This function therefore only decides whether to keep or hide entire mini-stores
+based on what is reified in the answer."
+  (let* ((st (car s/c/d))
+         (S  (caaar s/c/d))
+         (q-raw (cdr (walk-queries 0 s/c/d)))
+         (qterms (mapcar (lambda (x) (walk* x S)) q-raw))
+         (qvars (remove-duplicates
+                (remove-if-not #'lvar? (flatten qterms))
+                :test #'equalp)))
+    (labels ((mini-vars (mini)
+               (remove-duplicates
+                (remove-if-not #'lvar?
+                               (flatten (cons (mapcar #'car mini)
+                                             (mapcar #'cdr mini))))
+                :test #'equalp))
+             (all-in-query? (vars)
+               (every (lambda (v) (member v qvars :test #'equalp)) vars))
+             (walk-mini (mini)
+               (mapcar (lambda (pr) (cons (car pr) (walk* (cdr pr) S))) mini)))
+      (remove nil
+              (mapcar (lambda (mini)
+                        (let ((m (walk-mini mini)))
+                          (and (all-in-query? (mini-vars m)) m)))
+                      (D-of st))))))
+
 
           ;;;;;;;;;;;   Getting rid of unused vars   ;;;;;;;;;;;;;
 
