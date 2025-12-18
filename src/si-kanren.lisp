@@ -17,8 +17,6 @@
 (defun pair? (v) (consp v))
 (defun equalv? (x y) (equal x y))
 (defun null? (x) (null x))
-(defun the-pos (u s) (position u s :key #'car :test #'equalp))
-
 
 ;;;;;;;;;;;;;;; "si-kanren" (core microKanren) starts   ;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -27,11 +25,8 @@
 (defun lvar=? (x1 x2) (equal (aref x1 0) (aref x2 0)))
 
 (defun walk (u s)
-  (if (and (lvar? u)
-           (pair? s)
-           (the-pos u s))
-      (walk (cdr (elt s (the-pos u s))) s)
-      u))
+  (let ((pr (and (lvar? u) (assoc u s :test #'equalp))))
+    (if pr (walk (cdr pr) s) u)))
 
 (defun ext-s (lvar v s)
   `((,lvar . ,v) . ,s))
@@ -40,12 +35,20 @@
 
 (defun unit (st) (cons st mzero))
 
+(defun occurs? (x v s)
+  (let ((v (walk v s)))
+    (cond
+      ((lvar? v) (lvar=? x v))
+      ((pair? v) (or (occurs? x (car v) s)
+                     (occurs? x (cdr v) s)))
+      (t nil))))
+
 (defun unify (u v s)
   (let ((u (walk u s)) (v (walk v s)))
     (cond
       ((and (lvar? u) (lvar? v) (lvar=? u v)) s)
-      ((lvar? u) (ext-s u v s))
-      ((lvar? v) (ext-s v u s))
+      ((lvar? u) (if (occurs? u v s) '(() ) (ext-s u v s)))
+      ((lvar? v) (if (occurs? v u s) '(() ) (ext-s v u s)))
       ((and (pair? u) (pair? v))
        (let ((s1 (unify (car u) (car v) s)))
          (if (not (equal s1 '(())))
@@ -66,26 +69,36 @@
 (defun == (u v)
   (lambda (st)
     (let ((s^ (unify u v (s-of st))))
-      (if (not (equal s^ '(())))
-          (let ((nds (normalize-d<s/t/a #'disequality s^ (d-of st) (s-of st))))
-            (if (member 'err nds)
-                nil
-                (let ((rt (reform-T (ty-of st) s^))
-                      (ra (reform-a (a-of st) s^)))
-                     (if (equal "err" ra)
-                         nil
-                         (funcall (lambda (TY)
-                                    (cond ((equal TY "err" ) mzero)
-                                          (T (let ((d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (remove nil ra)
-                                                                                             (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY (remove nil nds) s^)) s^))))
-                                               (multiple-value-bind (ab ds)
-                                                 (check-a/t->disequality TY (remove nil ra) s^ d^)
-                                                 (unit (make-st
-                                                         (cons s^ (c-of st))
-                                                         ds
-                                                         TY
-                                                         ab))))))) (remove nil rt))))))
-          mzero))))
+      (if (equal s^ '(()))
+          mzero
+          ;; 1) reform-T (subito dopo unify)
+          (let ((TY^ (reform-T (ty-of st) s^)))
+            (if (equal TY^ "err")
+                mzero
+                ;; 2) reform-A (subito dopo reform-T)
+                (let ((A^ (reform-A (a-of st) s^)))
+                  (if (equal A^ "err")
+                      mzero
+                      ;; 3) normalize D (prima disequality-check, poi subsumption wrt TY/A)
+                      (let ((nds (normalize-d<s/t/a #'disequality s^ (d-of st) (s-of st))))
+                        (cond
+                          ;; se la normalizzazione ha trovato inconsistenza
+                          ((member 'err nds) mzero)
+                          ;; se ha prodotto fallimento
+                          ((equal nds '(())) mzero)
+                          (t
+                           (let* ((d1 (remove nil nds))
+                                  (d2 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T? TY^ d1 s^)))
+                                  (d3 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/A? A^  d2 s^))))
+                             ;; 4) bridge check finale
+                             (multiple-value-bind (ab ds)
+                                 (check-a/t->disequality TY^ A^ s^ d3)
+                               (unit (make-st
+                                      (cons s^ (c-of st))
+                                      ds
+                                      TY^
+                                      ab)))))))))))))))
+
 
 (defun mplus ($1 $2)   ;like appendo
   (cond
@@ -319,37 +332,86 @@ Returns:
 ;;;;;;;;;;;;;;;;;;;;;;;   Absento Constraint Store   ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun make-pred-A (tag)
+  ;; allowed? predicate: x is allowed iff it is NOT the forbidden tag
   (lambda (x) (not (and (tag? x) (tag=? x tag)))))
 
-(defun ext-A-with-pred (x tag pred s a)
-  (cond ((null? a) `((,x . (,tag . ,pred))))
-        ((equal a "err")
-         "err")
-        (T (let ((ac (car A)))
-             (let ((a-tag (tag-of ac)))
-               (cond ((equal (walk (car ac) s) x)
-                      (if (tag=? a-tag tag)
-                          '(())
-                          (ext-A-with-pred x tag pred s (cdr a))))
-                     (T (ext-A-with-pred x tag pred s (cdr a)))))))))
+(defun a-entry (x tag)
+  ;; store entry as (x tag . pred) so tag-of/pred-of work
+  (cons x (cons tag (make-pred-A tag))))
 
-(defun ext-A (x tag s a)
-  (cond ((null? a)
-         (let ((pred (make-pred-A tag)))
-           `((,x . (,tag . ,pred)))))
-        ((equal a "err")
-         nil)
-        (T (let ((ac (car a))
-                 (ad (cdr a)))
-               (let ((a-tag (tag-of ac)))
-                 (cond ((equal (walk (car ac) s) x)
-                        (if (tag=? a-tag tag)
-                            '(())
-                            (ext-A x tag S ad)))
-                       ((tag=? a-tag tag)
-                        (let ((a-pred (pred-of ac)))
-                          (ext-A-with-pred x tag a-pred s ad)))
-                       (T (ext-A x tag s ad))))))))
+(defun a-add-entry (A x tag S)
+  "Add (x,tag) to A if not already present (after walking keys through S)."
+  (let ((x* (walk x S)))
+    (if (and (lvar? x*)
+             (some (lambda (e)
+                     (and (lvar? (walk (car e) S))
+                          (equalp (walk (car e) S) x*)
+                          (tag=? (tag-of e) tag)))
+                   A))
+        A
+        (cons (a-entry x* tag) A))))
+
+(defun a-add (A S u tag)
+  "Add the constraint absento(tag, u) under substitution S.
+Returns a new A store, or \"err\" on violation."
+  (labels ((add-term (a term)
+             (let ((term* (walk term S)))
+               (cond
+                 ((lvar? term*)
+                  (a-add-entry a term* tag S))
+                 ((pair? term*)
+                  (let ((a1 (add-term a (car term*))))
+                    (if (equal a1 "err")
+                        "err"
+                        (add-term a1 (cdr term*)))))
+                 ((null? term*) a)
+                 (t
+                  (if (and (tag? term*) (tag=? term* tag))
+                      "err"
+                      a))))))
+    (add-term A u)))
+
+(defun reform-A (A S)
+  "Canonicalize + propagate absento constraints under substitution S.
+- If a constrained var becomes ground: fail iff it equals the forbidden tag.
+- If it becomes a pair: propagate to car/cdr.
+- If it aliases another var: move the constraint to the representative.
+Returns normalized A, or \"err\"."
+  (let ((out '()))
+    (dolist (e A (remove-duplicates out :test #'equalp))
+      (let ((tag (tag-of e)))
+        (setf out (a-add out S (car e) tag))
+        (when (equal out "err")
+          (return-from reform-A "err"))))))
+
+(defun absento (tag u)
+  (cond
+    ((not (tag? tag))
+     (error "Incorrect absento usage: ~s is not a tag" tag))
+    (t
+     (lambda (st)
+       (let* ((S  (s-of st))
+              ;; add the new constraint
+              (A1 (a-add (a-of st) S u tag)))
+         (cond
+           ((equal A1 "err") mzero)
+           (t
+            ;; canonicalize A (important for duplicates/aliases)
+            (let ((A2 (reform-A A1 S)))
+              (if (equal A2 "err")
+                  mzero
+                  ;; normalize D wrt TY then A, then run bridge check
+                  (let* ((d1 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/T?
+                                                           (ty-of st)
+                                                           (d-of st)
+                                                           S)))
+                         (d2 (remove nil (normalize-d<s/t/a #'subsumed-d-pr/A?
+                                                           A2
+                                                           d1
+                                                           S))))
+                    (multiple-value-bind (ab ds)
+                        (check-a/t->disequality (ty-of st) A2 S d2)
+                      (unit (make-st (s/c-of st) ds (ty-of st) ab)))))))))))))
 
 (defun subsumed-d-pr/A? (u v A S)
   "Given lists U and V (same length) representing a mini-store of equalities
@@ -409,75 +471,6 @@ Returns:
           '(())
           pairs))))
 
-
-(defun absento/u (u tag st s/c d ty a)
-  (let ((u (walk u (s-of st))))
-    (cond ((lvar? u) (let ((A+ (ext-A u tag (s-of st) a)))
-                       (cond ((null? A+) st)
-                             (T (let ((d^ (remove nil (normalize-d<s/t/a #'subsumed-d-pr/a? (append A+ a) d (s-of st)))))
-                                 (multiple-value-bind (ab ds)
-                                   (check-a/t->disequality (remove nil ty) (append A+ a) (s-of st) d^)
-                                   (make-st
-                                             s/c
-                                             ds
-                                             ty
-                                             ab)))))))
-          ((pair? u) (let ((au (car u))
-                           (du (cdr u)))
-                       (let ((st (absento/u au tag st s/c d ty a)))
-                         (and st (let ((s/c (s/c-of st))
-                                       (d (d-of st))
-                                       (ty (ty-of st))
-                                       (a (remove nil (a-of st))))
-                                   (absento/u du tag st s/c d ty a))))))
-          (T (cond ((and (tag? u) (tag=? u tag)) nil)
-                   (T st))))))
-
-(defun absento (tag u)
-  (cond ((not (tag? tag))
-         (error "Incorrect absento usage: ~s is not a tag" tag))
-        (T (lambda (st)
-             (let ((s/c (s/c-of st))
-                   (d (d-of st))
-                   (ty (ty-of st))
-                   (a (a-of st)))
-                (let ((absu (absento/u u tag st s/c d ty a)))
-                    (if absu
-                        (unit absu)
-                        mzero)))))))
-
-(defun reform-A (A S)
-  (cond ((null? A) '(()))
-        ((let ((ra (reform-A (cdr A) S)))
-          (if (equal ra "err")
-              "err"
-              (funcall (reform-A+ (car (car A)) A S) ra))))
-        (T "err")))
-
-(defun reform-A+ (x A S)
-  (lambda (aol)
-    (if (not (equal aol "err"))
-        (let ((u (walk x S))
-              (tag (tag-of (car A)))
-              (pred (pred-of (car A))))
-            (cond
-                  ((not (or (lvar? u) (pair? u)))
-                   "err")
-                  ((equal u nil) nil)
-                  ((lvar? u)
-                   (let ((exa (ext-A-with-pred x tag pred S aol)))
-                       (if (and exa (not (equal exa "err")))
-                           (funcall (lambda (A+) (append A+ aol)) exa)
-                           "err")))
-                  ((pair? u)
-                   (let ((au (car u))
-                         (du (cdr u)))
-                        (let ((ra+ (funcall (reform-A+ au A S) aol)))
-                         (if (and ra+ (not (equal ra+ '(()))))
-                             (funcall (reform-A+ du A S) ra+)
-                             "err"))))
-                  (T (and (funcall pred u) aol))))
-        "err")))
 
 ;;; To check for disequality comparing the absento and the type stores
 (defun check-a/t->disequality (ty ab s ds)

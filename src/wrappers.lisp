@@ -58,39 +58,51 @@
   (make-symbol (concatenate 'string "_." (write-to-string n))))
 
 (defun reify-state/1st-var (st)
-  (let ((at (append (if (null? (a-of st)) '() `((absento . ,(a-of st)))) (ty-of st))))
-   (labels (( o (ti)
-             (let ((v (walk* ti (s-of st))))
-                 (walk* v (reify-s v '())))))
-    (o (cons (lvar 0)
-         (cond
-              ((and  (null? (d-of st)) (null? at))
-               '())
-              ((null? (d-of st))
-               `(with ,at))
-              ((null? at)
-               `(where  ,(mapcar (lambda (mini) `,(if (equal (cdar mini) nil) ;If it's not a "composite" disequality, i.e. (=/= `(,x 9) `(3 ,y))
-                                                      `,(if (cdr mini) ;If there are many disequalities
-                                                            `(or . ,(mapcar (lambda (mini) (if (null (cdar mini))
-                                                                                            `(=/= ,(car mini) ,(cdar mini))
-                                                                                            (remove nil `(=/= ,(car mini) ,(cdr mini))))) mini))
-                                                            (mapcar (lambda (mini) (if (null (cdar mini)) ;Otherwise, keep it simple
-                                                                                       `(=/= ,(car mini) ,(cdar mini))
-                                                                                       (remove nil `(=/= ,(car mini) ,(cdr mini))))) mini))
-                                                      `(and . ,(mapcar (lambda (dis) (unit (remove nil `(=/= ,(car dis) ,(flatten (cdr dis)))))) mini))))
-                              (d-of st))))
-              ((and (d-of st) at)
-               (cons `(where  ,(mapcar (lambda (mini) `,(if (equal (cdar mini) nil)
-                                                          `,(if (cdr mini)
-                                                                `(or . ,(mapcar (lambda (mini) (if (null (cdar mini))
-                                                                                                `(=/= ,(car mini) ,(cdar mini))
-                                                                                                (remove nil `(=/= ,(car mini) ,(cdr mini))))) mini))
-                                                                (mapcar (lambda (mini) (if (null (cdar mini))
-                                                                                           `(=/= ,(car mini) ,(cdar mini))
-                                                                                           (remove nil `(=/= ,(car mini) ,(cdr mini))))) mini))
-                                                            `(and . ,(mapcar (lambda (dis) (unit (remove nil `(=/= ,(car dis) ,(flatten (cdr dis)))))) mini))))
-                                    (d-of st))) `(with ,at)))
-              (T nil)))))))
+  (let ((at (append (if (null? (a-of st)) '() `((absento . ,(a-of st))))
+                    (ty-of st))))
+    (labels
+        (;; mini-store subsumption: m1 subsumes m2 if m1 ⊆ m2 (setwise)
+         (mini-subsumes? (m1 m2)
+           (every (lambda (p) (member p m2 :test #'equalp)) m1))
+
+         (normalize-d-for-print (d)
+           (let* ((d1 (remove nil (mapcar (lambda (m) (remove nil m)) d)))
+                  (d1 (remove-duplicates d1 :test #'equalp)))
+             (remove-if (lambda (m)
+                          (some (lambda (n)
+                                  (and (not (equalp m n))
+                                       (mini-subsumes? n m)))
+                                d1))
+                        d1)))
+
+         (render-mini (mini)
+           (cond
+             ((null mini) nil)
+             ;; singleton mini-store: (=/= (_.0 . 5))
+             ((null (cdr mini)) `(=/= ,(car mini)))
+             ;; composite mini-store: (=/= (_.0 . 5) (_.1 . 6))
+             (t `(=/= ,@mini))))
+
+         (render-d (d)
+           (let* ((d2 (normalize-d-for-print d))
+                  (cs (remove nil (mapcar #'render-mini d2))))
+             (cond
+               ((null cs) '())
+               ((null (cdr cs)) cs)
+               (t (list (cons 'and cs))))))
+
+         (o (ti)
+           (let ((v (walk* ti (s-of st))))
+             (walk* v (reify-s v '())))))
+
+      (o (cons (lvar 0)
+               (cond
+                 ((and (null? (d-of st)) (null? at)) '())
+                 ((null? (d-of st)) `(with ,at))
+                 ((null? at) `(where ,(render-d (d-of st))))
+                 (t (cons `(where ,(render-d (d-of st)))
+                          `(with ,at)))))))))
+
 
 (defun mK-reify (st)
     (if (equal nil st)
@@ -255,21 +267,6 @@
         (null (set-difference (norm-cons list1) (norm-cons list2) :test #'equalp)))
    '()))
 
-(defun norm=lvars (d)
-  (let ((seen '())
-        (d^ '()))
-    (mapcar (lambda (x)
-              (if (null? seen)
-                  (progn (setq seen (cons (car x) seen))
-                         (setq d^ (cons x d^)))
-                  (if (cdr x)
-                      (setq d^ (cons x d^))
-                      (if (member (car x) seen :test #'equal-lists)
-                          '()
-                          (progn
-                            (setq seen (append x seen))
-                            (setq d^ (cons x d^))))))) d) d^))
-
         ;;;;;;;;;;;;;   Getting rid of "ghost" vars ;;;;;;;;;;;;;;;;;
 
 (defun walk-queries (n st)
@@ -321,7 +318,7 @@
                             (member-nested el (cdr l))))
        (t (member-nested el (cdr l)))))
 
-;;; Normalize-fresh, together with norm=lvars, is used to normalize the
+;;; Normalize-fresh is used to normalize the
 ;;; disequality store, manteining the original structure, so that
 ;;; we can pass it to REIFY-STATE/1ST-VAR for a prettier reification
 (defun normalize-fresh (s/c/d)
@@ -439,10 +436,28 @@ based on what is reified in the answer."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;  Normalize everything  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun mini-subsumes? (m1 m2)
+  "m1 subsumes m2 if all pairs in m1 are also in m2."
+  (every (lambda (p) (member p m2 :test #'equalp)) m1))
+
+(defun prune-subsumed-minis (d)
+  "Remove any mini-store that is a strict superset of another mini-store."
+  (remove-if (lambda (m)
+               (some (lambda (n)
+                       (and (not (equalp m n))
+                            (mini-subsumes? n m)))
+                     d))
+             d))
+
 (defun normalize (st)
-  (if (not (cdr st))
-      (norm=lvars (normalize-fresh st))
-      (norm=lvars (normalize-fresh (cons (car st) nil)))))
+  (let* ((d (if (not (cdr st))
+                (normalize-fresh st)
+                (normalize-fresh (cons (car st) nil))))
+         (d (remove-duplicates d :test #'equalp))
+         (d (prune-subsumed-minis d)))
+    d))
+
+
 
 (defun normalize-conde (st)
   (if (null st)
@@ -451,7 +466,7 @@ based on what is reified in the answer."
                      (let ((d (normalize st)))
                        (if (null? d)
                            nil
-                           (unit d)))
+                           d))
                      (mapcar #'sort-part (partition* (drop-pred-t/a (normalize-ty st))))
                      (part/A (drop-pred-t/a (normalize-a st))))
            (normalize-conde (cdr st)))))
