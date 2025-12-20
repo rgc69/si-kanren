@@ -568,3 +568,64 @@
     (fish-puzzle solution)
     (who-owns-the-fish? solution 'Norwegian)))
 ;;---------------------------------------------
+
+
+
+;;;;;;;;;;;;;;;;;     A BASIC  RELATIONAL    INTERPRETER     ;;;;;;;;;;;;;;;;;;;
+
+(defun lookupo (x env te)
+  (fresh (y v rest)
+         (== `((,y . ,v) . ,rest) env)
+           (conde
+             ((== y x) (== v te))
+             ((=/= y x)(lookupo x rest te)))))
+
+(defun not-in-envo (x env)
+  (conde
+    ((== '() env))
+    ((fresh (y v rest)
+            (== `((,y . ,v) . ,rest) env)
+            (=/= y x)
+            (not-in-envo x rest)))))
+
+(defun proper-listo (exp env val)
+  (conde
+    ((== `() exp)
+     (== `() val))
+    ((fresh (a d v-a v-d)
+            (== `(,a . ,d) exp)
+            (== `(,v-a . ,v-d) val)
+            (eval-expo a env v-a)
+            (proper-listo d env v-d)))))
+
+(defun eval-expo (exp env val)
+  (conde
+    ((fresh (v)
+        (== `(quote ,v) exp)
+        (not-in-envo 'quote env)
+        (absento 'closure v)
+        (== v val)))
+    ((fresh (a*)
+        (== `(list . ,a*) exp)
+        (not-in-envo 'list env)
+        (absento 'closure a*)
+        (proper-listo a* env val)))
+    ((symbolo exp) (lookupo exp env val))
+    ((fresh (rator rand x body env^ a)
+        (== `(,rator ,rand) exp)
+        (eval-expo  rator env `(closure ,x ,body ,env^))
+        (eval-expo rand env a)
+        (eval-expo body `((,x . ,a) . ,env^) val)))
+    ((fresh (x body)
+        (== `(lambda (,x) ,body) exp)
+        (symbolo x)
+        (not-in-envo  'lambda env)
+        (== `(closure ,x ,body ,env) val)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;          QUINES      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(run 1 (q) (eval-expo q '() q))
+
+(run 1 (x) (fresh (p q) (=/= p q) (eval-expo p '() q) (eval-expo q '() p) (== `(,p ,q) x)))
+
+
