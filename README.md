@@ -30,7 +30,8 @@ least, as far as I know).
 version,  as  per  the  paper  *A  tutorial  reconstruction  of  miniKanren with
 constraints*        [Bharathi       Ramana        Joshi,        William       E.
 Byrd](https://drive.google.com/file/d/1svTPpIowx4InQIaUU3DyVEMpcoSZP6Bm/view?usp=sharing),
-where the first argument is required to be a symbol only.
+where the first argument is required to be a symbol only. Also includes a tiny relational interpreter (see playground.lisp), 
+capable of generating **quines** (and even *twines*).
 4.  *Reification* of **all** the logic queries variables `x x0...` in `(run _ (x x0...)...)`.  It looks
 like a trick of magic too beautiful to not include it. :magic_wand:
 5. *Interactive* request of a solution/s, with `runi`.
