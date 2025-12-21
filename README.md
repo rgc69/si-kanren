@@ -14,7 +14,7 @@ store*, `t` the *type store* and `a` the *absento store*.
 
 For more information:
 - Excellent survey paper on unification: [Kevin Knight](https://kevincrawfordknight.github.io/papers/unification-knight.pdf).
-- Disunification papers: [Hubert Comon , Pierre Lescanne](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.139.4769).
+- Disunification papers: [Hubert Comon , Pierre Lescanne](https://inria.hal.science/inria-00075652v1/file/RR-0904.pdf).
   - [Hubert Comon](https://www.semanticscholar.org/paper/Disunification%3A-A-Survey.-Comon/0d3a871604806c366ce1aa09120eba2964d5f111)
 - Combining Unification and Disunification Algorithms: [Klaus U. Schulz](https://www.cis.uni-muenchen.de/otherpublications/cis_berichte/cis-96-099.html).
 - And, above all, the [miniKanren uncourse series](https://www.youtube.com/playlist?list=PLO4TbomOdn2cks2n5PvifialL8kQwt0aW), by William Byrd!
@@ -30,7 +30,9 @@ least, as far as I know).
 version,  as  per  the  paper  *A  tutorial  reconstruction  of  miniKanren with
 constraints*        [Bharathi       Ramana        Joshi,        William       E.
 Byrd](https://drive.google.com/file/d/1svTPpIowx4InQIaUU3DyVEMpcoSZP6Bm/view?usp=sharing),
-where the first argument is required to be a symbol only.
+where the first argument is required to be a symbol only. Also includes a tiny relational interpreter (see playground.lisp), 
+capable of generating **quines** (and even *twines*. See: *miniKanren, Live and Untagged
+Quine Generation via Relational Interpreters (Programming Pearl)*   [William E. Byrd, Eric Holk, Daniel P. Friedman](http://webyrd.net/quines/quines.pdf)).
 4.  *Reification* of **all** the logic queries variables `x x0...` in `(run _ (x x0...)...)`.  It looks
 like a trick of magic too beautiful to not include it. :magic_wand:
 5. *Interactive* request of a solution/s, with `runi`.

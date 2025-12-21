@@ -576,15 +576,17 @@
 (defun lookupo (x env te)
   (fresh (y v rest)
          (== `((,y . ,v) . ,rest) env)
-           (conde
-             ((== y x) (== v te))
-             ((=/= y x)(lookupo x rest te)))))
+         (symbolo y)
+        (conde
+           ((== y x) (== v te))
+           ((=/= y x)(lookupo x rest te)))))
 
 (defun not-in-envo (x env)
   (conde
     ((== '() env))
     ((fresh (y v rest)
             (== `((,y . ,v) . ,rest) env)
+            (symbolo y)
             (=/= y x)
             (not-in-envo x rest)))))
 
@@ -603,11 +605,13 @@
     ((fresh (v)
         (== `(quote ,v) exp)
         (not-in-envo 'quote env)
+        (not-in-envo 'closure env)
         (absento 'closure v)
         (== v val)))
     ((fresh (a*)
         (== `(list . ,a*) exp)
         (not-in-envo 'list env)
+        (not-in-envo 'closure env)
         (absento 'closure a*)
         (proper-listo a* env val)))
     ((symbolo exp) (lookupo exp env val))
@@ -620,12 +624,18 @@
         (== `(lambda (,x) ,body) exp)
         (symbolo x)
         (not-in-envo  'lambda env)
+        (not-in-envo 'closure env)
         (== `(closure ,x ,body ,env) val)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;          QUINES      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;  QUINES / TWINES      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (run 1 (q) (eval-expo q '() q))
 
+;; Twines (two different programs that evaluate to each other).
+;; NOTE: the second query is WAY faster: delaying (=/= p q) avoids carrying a huge
+;; disequality constraint too early in the search.
+
 (run 1 (x) (fresh (p q) (=/= p q) (eval-expo p '() q) (eval-expo q '() p) (== `(,p ,q) x)))
+(run 1 (x) (fresh (p q) (eval-expo p '() q) (eval-expo q '() p) (=/= p q) (== (,p ,q) x)))
 
 
