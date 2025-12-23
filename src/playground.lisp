@@ -1,3 +1,17 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; TABLE OF CONTENTS
+;;;   1) Small library (macros + basic relations) ................. [line ~14]
+;;;   2) Playground: quick sanity-check queries ................... [line ~64]
+;;;   3) Parents / grandparent / cousin relations ................. [line ~278]
+;;;   4) Tiny taxonomy-style constraint demo ...................... [line ~341]
+;;;   5) Zebra puzzle + “who owns the fish?” queries .............. [line ~368]
+;;;   6) Interpreter v0 (minimal) — quines/twines demos ........... [line ~588]
+;;;      - Quines & Twines ........................................ [line ~651]
+;;;   7) Interpreter v1 (extended core) — letrec + primitives ...... [line ~665]
+;;;      - Unguided synthesis examples (holes, spurious possible) .. [line ~826]
+;;;      - Guided synthesis helpers + examples (bounded, roles) .... [line ~844]
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;;;;;;;;;;;;;;;;;;;;   A small library....   ;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro suspend (&rest body)
@@ -571,7 +585,14 @@
 
 
 
-;;;;;;;;;;;;;;;;;     A BASIC  RELATIONAL    INTERPRETER     ;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; RELATIONAL INTERPRETER v0 — minimal core (quine/twine playground)
+;;;
+;;; Small eval-expo: quote / list / vars / lambda / unary application.
+;;; Fast and compact. Great for quines & twines (and quick sanity checks).
+;;; For synthesis with holes it may return correct-but-spurious solutions:
+;;; dead code, overly general guards, etc. (expected in v0).
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun lookupo (x env te)
   (fresh (y v rest)
@@ -590,7 +611,7 @@
             (=/= y x)
             (not-in-envo x rest)))))
 
-(defun proper-listo (exp env val)
+(defun proper-listo/v0 (exp env val)
   (conde
     ((== `() exp)
      (== `() val))
@@ -598,7 +619,7 @@
             (== `(,a . ,d) exp)
             (== `(,v-a . ,v-d) val)
             (eval-expo a env v-a)
-            (proper-listo d env v-d)))))
+            (proper-listo/v0 d env v-d)))))
 
 (defun eval-expo (exp env val)
   (conde
@@ -613,7 +634,7 @@
         (not-in-envo 'list env)
         (not-in-envo 'closure env)
         (absento 'closure a*)
-        (proper-listo a* env val)))
+        (proper-listo/v0 a* env val)))
     ((symbolo exp) (lookupo exp env val))
     ((fresh (rator rand x body env^ a)
         (== `(,rator ,rand) exp)
@@ -627,15 +648,306 @@
         (not-in-envo 'closure env)
         (== `(closure ,x ,body ,env) val)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;  QUINES / TWINES      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; QUINES / TWINES (stress-tests for eval-expo)
+;;;
+;;; Quine  = program evaluates to itself
+;;; Twine  = two different programs evaluate to each other
+;;;
+;;; NOTE: delaying (=/= p q) is WAY faster (cheaper constraint handling).
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (run 1 (q) (eval-expo q '() q))
 
-;; Twines (two different programs that evaluate to each other).
-;; NOTE: the second query is WAY faster: delaying (=/= p q) avoids carrying a huge
-;; disequality constraint too early in the search.
-
 (run 1 (x) (fresh (p q) (=/= p q) (eval-expo p '() q) (eval-expo q '() p) (== `(,p ,q) x)))
-(run 1 (x) (fresh (p q) (eval-expo p '() q) (eval-expo q '() p) (=/= p q) (== (,p ,q) x)))
+(run 1 (x) (fresh (p q) (eval-expo p '() q) (eval-expo q '() p) (=/= p q) (== `(,p ,q) x)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; RELATIONAL INTERPRETER v1 — extended core (letrec + primitives)
+;;;
+;;; Single eval-expo with:
+;;; - quote / list / vars / lambda / unary application
+;;; - letrec for recursion
+;;; - primitives: if / null? / cons / car / cdr
+;;;
+;;; Everything below uses this same interpreter; only the search strategy changes.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defun proper-listo/v1 (exp env val)
+  (conde
+    ((== `() exp) (== `() val))
+    ((fresh (a d v-a v-d)
+       (== `(,a . ,d) exp)
+       (== `(,v-a . ,v-d) val)
+       (eval-expo/v1 a env v-a)
+       (proper-listo/v1 d env v-d))))
+
+(defun eval-expo/v1 (exp env val)
+  (conde
+
+    ;; -----------------------
+    ;; quote
+    ;; -----------------------
+    ((fresh (v)
+       (== `(quote ,v) exp)
+       (not-in-envo 'quote env)
+       (not-in-envo 'closure env)
+       (absento 'closure v)
+       (== v val)))
+
+    ;; -----------------------
+    ;; list
+    ;; -----------------------
+    ((fresh (a*)
+       (== `(list . ,a*) exp)
+       (not-in-envo 'list env)
+       (not-in-envo 'closure env)
+       (absento 'closure a*)
+       (proper-listo/v1 a* env val)))
+
+    ;; -----------------------
+    ;; if
+    ;; (if test conseq alt)
+    ;; false is the symbol 'false; everything else is truthy.
+    ;; -----------------------
+    ((fresh (tst thn els tv)
+       (== `(if ,tst ,thn ,els) exp)
+       (not-in-envo 'if env)
+       (eval-expo/v1 tst env tv)
+       (conde
+         ((== tv 'false) (eval-expo/v1 els env val))
+         ((=/= tv 'false) (eval-expo/v1 thn env val)))))
+
+    ;; -----------------------
+    ;; null?
+    ;; (null? e) => 'true or 'false
+    ;; -----------------------
+    ((fresh (e v)
+       (== `(null? ,e) exp)
+       (not-in-envo 'null? env)
+       (eval-expo/v1 e env v)
+       (conde
+         ((== v '()) (== val 'true))
+         ((=/= v '()) (== val 'false)))))
+
+    ;; -----------------------
+    ;; cons
+    ;; (cons a d)
+    ;; -----------------------
+    ((fresh (a d va vd)
+       (== `(cons ,a ,d) exp)
+       (not-in-envo 'cons env)
+       (eval-expo/v1 a env va)
+       (eval-expo/v1 d env vd)
+       (== (cons va vd) val)))
+
+    ;; -----------------------
+    ;; car
+    ;; (car p)
+    ;; -----------------------
+    ((fresh (p vp va vd)
+       (== `(car ,p) exp)
+       (not-in-envo 'car env)
+       (eval-expo/v1 p env vp)
+       (== (cons va vd) vp)
+       (== va val)))
+
+    ;; -----------------------
+    ;; cdr
+    ;; (cdr p)
+    ;; -----------------------
+    ((fresh (p vp va vd)
+       (== `(cdr ,p) exp)
+       (not-in-envo 'cdr env)
+       (eval-expo/v1 p env vp)
+       (== (cons va vd) vp)
+       (== vd val)))
+
+    ;; -----------------------
+    ;; letrec (single binding, lambda-only rhs)
+    ;; (letrec ((f (lambda (x) fbody))) body)
+    ;; Binds f to a closure whose env is (rec-env f env) to avoid cyclic envs.
+    ;; -----------------------
+    ((fresh (f x fbody body proc env1)
+       (== `(letrec ((,f (lambda (,x) ,fbody))) ,body) exp)
+       (symbolo f)
+       (symbolo x)
+       (not-in-envo 'letrec env)
+       (not-in-envo 'lambda env)
+       (not-in-envo 'closure env)
+       (=/= f 'quote) (=/= f 'list) (=/= f 'lambda) (=/= f 'letrec)
+       ;; build recursive procedure value
+       (== proc `(closure ,x ,fbody (rec-env ,f ,env)))
+       ;; extend env for body
+       (== env1 `((,f . ,proc) . ,env))
+       (eval-expo/v1 body env1 val)))
+
+    ;; -----------------------
+    ;; variable
+    ;; -----------------------
+    ((symbolo exp)
+     (lookupo exp env val))
+
+    ;; -----------------------
+    ;; application (unary)
+    ;; (rator rand)
+    ;; Supports closures with env = (rec-env f base-env)
+    ;; -----------------------
+    ((fresh (rator rand proc x body env^ a call-env)
+       (== `(,rator ,rand) exp)
+       (eval-expo/v1 rator env proc)
+       (eval-expo/v1 rand env a)
+
+       ;; proc is a closure
+       (== proc `(closure ,x ,body ,env^))
+
+       ;; compute call-env:
+       ;; - normal closure: call-env = env^
+       ;; - recursive closure: call-env = ((f . proc) . base-env)
+       (conde
+         ((== call-env env^)
+          (=/= env^ `(rec-env . ,call-env))) ; avoid accidental match (cheap guard)
+         ((fresh (f base)
+            (== env^ `(rec-env ,f ,base))
+            (== call-env `((,f . ,proc) . ,base)))))
+
+       (eval-expo/v1 body `((,x . ,a) . ,call-env) val)))
+
+    ;; -----------------------
+    ;; lambda
+    ;; -----------------------
+    ((fresh (x body)
+       (== `(lambda (,x) ,body) exp)
+       (symbolo x)
+       (not-in-envo 'lambda env)
+       (not-in-envo 'closure env)
+       (== `(closure ,x ,body ,env) val)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; SYNTHESIS MODE A — unguided (holes allowed, spurious answers possible)
+;;;
+;;; We let eval-expo/v1 solve templates with holes directly.
+;;; Works, but may return correct solutions with dead code / overly general guards.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(run 1 (q x)
+  (eval-expo/v1
+    `(letrec ((append (lambda (xs)
+                        (lambda (ys)
+                          (if ,x
+                              ys
+                              (,q (car xs) ((append (cdr xs)) ys)))))))
+       ((append (quote (a b))) (quote (c d))))
+    '()
+    '(a b c d)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; SYNTHESIS MODE B — guided (bounded + role-aware search)
+;;;
+;;; Same eval-expo/v1. The difference is how we search:
+;;; - bounded generators (Peano depth)
+;;; - role-aware grammars (bool / proc / value)
+;;; This keeps search finite and usually yields the “standard” minimal solutions.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun nameo (s)
+  (conde ((== s 'f0)) ((== s 'f1)) ((== s 'f2)) ((== s 'f3)) ((== s 'f4))
+         ((== s 'f5)) ((== s 'f6)) ((== s 'f7)) ((== s 'f8)) ((== s 'f9))))
+
+(defun keyo (s)
+  (conde ((== s 'quote)) ((== s 'list)) ((== s 'lambda)) ((== s 'letrec))
+         ((== s 'if)) ((== s 'null?)) ((== s 'cons)) ((== s 'car)) ((== s 'cdr))
+         ((== s 'true)) ((== s 'false))))
+
+(defun id-o (s)
+  ;; identifiers allowed as variables / function names
+  (conde ((nameo s)) ((== s 'xs)) ((== s 'ys))))
+
+(defun z? (d) (== d '()))
+(defun s? (d d-1) (== d (cons 's d-1)))
+
+(defun peano (n)
+  (if (<= n 0) '() (cons 's (peano (1- n)))))
+
+;; if it sees (if HOLE …), HOLE must be bool
+(defun bool-deptho (e d)
+  (conde
+    ((z? d)
+     (conde ((== e 'true)) ((== e 'false))
+            ((== e `(null? xs))) ((== e `(null? ys)))))  ; tiny base
+    ((fresh (d-1)
+       (s? d d-1)
+       (conde
+         ((== e 'true)) ((== e 'false))
+         ((fresh (te)
+            (== e `(null? ,te))
+            (value-deptho te d-1)))
+         ((fresh (te a b)
+            (== e `(if ,te ,a ,b))
+            (bool-deptho te d-1)
+            (bool-deptho a d-1)
+            (bool-deptho b d-1))))))))
+
+;; if it sees (HOLE arg), HOLE must be proc
+(defun proc-deptho (e d)
+  (conde
+    ((z? d)
+     (conde
+       ((id-o e))                 ; a named function/var
+       ((== e 'append))))         ; if you *bind* append in the program, this helps, optional
+    ((fresh (d-1)
+       (s? d d-1)
+       (conde
+         ((id-o e))
+         ;; lambda can be a procedure directly
+         ((fresh (x body)
+            (== e `(lambda (,x) ,body))
+            (id-o x)
+            (value-deptho body d-1)))
+         ;; allow higher-order: (something that evaluates to a proc) applied to one arg
+         ((fresh (rator rand)
+            (== e `(,rator ,rand))
+            (proc-deptho rator d-1)
+            (value-deptho rand d-1))))))))
+
+;; if it sees (cons HOLE …), HOLE must be val
+(defun value-deptho (e d)
+  (conde
+    ((z? d)
+     (conde
+       ((id-o e))
+       ((fresh (v) (== e `(quote ,v))))) )
+    ((fresh (d-1)
+       (s? d d-1)
+       (conde
+         ((id-o e))
+         ((fresh (v) (== e `(quote ,v))))
+         ((fresh (a b)
+            (== e `(cons ,a ,b))
+            (value-deptho a d-1)
+            (value-deptho b d-1)))
+         ((fresh (p)
+            (== e `(car ,p))
+            (value-deptho p d-1)))
+         ((fresh (p)
+            (== e `(cdr ,p))
+            (value-deptho p d-1)))
+         ((fresh (rator rand)
+            (== e `(,rator ,rand))
+            (proc-deptho rator d-1)
+            (value-deptho rand d-1))))))))
+
+(run 1 (qx)
+  (fresh (x q)
+    (bool-deptho x (peano 3))
+    (value-deptho q (peano 3))
+    (eval-expo/v1
+      `(letrec ((append (lambda (xs)
+                          (lambda (ys)
+                            (if ,x
+                                ys
+                                (cons ,q ((append (cdr xs)) ys)))))))
+         ((append (quote (a b))) (quote (c d))))
+      '()
+      '(a b c d))
+    (== `(,x ,q) qx)))
