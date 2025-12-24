@@ -1,15 +1,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; TABLE OF CONTENTS
-;;;   1) Small library (macros + basic relations) ................. [line ~14]
-;;;   2) Playground: quick sanity-check queries ................... [line ~64]
-;;;   3) Parents / grandparent / cousin relations ................. [line ~278]
-;;;   4) Tiny taxonomy-style constraint demo ...................... [line ~341]
-;;;   5) Zebra puzzle + “who owns the fish?” queries .............. [line ~368]
-;;;   6) Interpreter v0 (minimal) — quines/twines demos ........... [line ~588]
-;;;      - Quines & Twines ........................................ [line ~651]
-;;;   7) Interpreter v1 (extended core) — letrec + primitives ...... [line ~665]
-;;;      - Unguided synthesis examples (holes, spurious possible) .. [line ~826]
-;;;      - Guided synthesis helpers + examples (bounded, roles) .... [line ~844]
+;;;   1) Small library (macros + basic relations) ................. [line ~15]
+;;;   2) Playground: quick sanity-check queries ................... [line ~65]
+;;;   3) Parents / grandparent / cousin relations ................. [line ~281]
+;;;   4) Tiny taxonomy-style constraint demo ...................... [line ~346]
+;;;   5) Zebra puzzle + “who owns the fish?” queries .............. [line ~375]
+;;;   6) Interpreter v0 (minimal) — quines/twines demos ........... [line ~602]
+;;;      - Quines & Twines ........................................ [line ~665]
+;;;   7) Interpreter v1 (extended core) — letrec + primitives ......[line ~681]
+;;;      - Unguided synthesis examples (holes, spurious possible) ..[line ~842]
+;;;      - Guided synthesis helpers + examples (bounded, roles) ....[line ~862]
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;   A small library....   ;;;;;;;;;;;;;;;;;;;;;;;
@@ -64,217 +64,219 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;  Playground  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(run 1 (q)
+#+nil
+(progn
+  (run 1 (q)
+         (fresh (x y)
+            (== x 10)
+            (=/= y 5)
+            (=/=  y 2)
+            (== y 9)
+            (== q `(,x . ,y))))
+
+  (run 1 (q) (fresh (x y z)
+                    (=/= z 8)
+                    (== x y)
+                    (== x z)
+                    (== 3 y)
+                    (== q `(,x ,y ,z))))
+
+  (run 1 (q) (fresh (x y z)
+                    (=/= z 8)
+                    (== x y)
+                    (== x z)
+                    (== 3 y)
+                    (== 1 z)
+                    (== q `(,x ,y ,z))))
+
+  (run 5 (q)
+    (fresh (x y z)
+      (== x z)
+      (== 3 y)
+      (=/= z y)
+      (== q `(,x ,y ,z))))
+
+  (run 2 (q)
+    (fresh (w x y)
+      (conde
+        ((== `(,x ,w ,x) q)
+         (== y w))
+        ((== `(,w ,x ,w) q)
+         (== y w)))))
+
+ (run* (x y) (== x 9) (== y 42))
+
+ (run* (p) (=/= p 1))
+
+ (run* (p) (=/= 1 p) (== 1 p))
+
+  (run* (q)
+    (fresh (p r)
+      (=/= '(1 2) `(,p ,r))
+      (== `(,p ,r) q)))
+
+  (run* (q)
+    (fresh (p r)
+      (=/= '(1 2) `(,p ,r))
+      (== 1 p)
+      (== `(,p ,r) q)))
+
+  (run* (q)
+    (fresh (p r)
+      (=/= '(1 2) `(,p ,r))
+      (== r 2)
+      (== 1 p)
+      (== `(,p ,r) q)))
+
+  (run* (q)
+    (fresh (a b c)
+          (disj+
+             (== q 1)
+             (== q 2)
+             (== q 3))))
+
+  (run 2 (q)
+         (== 1 q)
+         (== 1 1))
+
+  (run* (r)
+      (fresh (y x)
+        (== `(,x ,y) r)))
+
+  (run* (q)
+    (== q (list 1 2 3)))
+
+  (run* (r) (fresh (x y z)
+                   (== `(e a d ,x) r)
+                   (conso y `(a ,z c) r)))
+
+  (run* (x) (conso x `(a ,x c) `(d a ,x c)))
+
+  (run* (x) (conso x `(a ,x c) `(d a ,x d c)))
+
+  (run 10 (q)
+         (conde
+            ((== q 1))
+            ((=/= q 2))))
+
+  (run* (q)
+    (fresh (a b c)
+          (conde
+             ((== a 1) (== b a) (== c a) (=/= c 1))
+             ((== a 2)(== b 3)(== c a)))
+         (== q `(,a ,b ,c))))
+
+  (run 5 (q)
        (fresh (x y)
-          (== x 10)
-          (=/= y 5)
-          (=/=  y 2)
-          (== y 9)
-          (== q `(,x . ,y))))
+              (== x 'pear)
+              (=/= y x)
+              (== q `(,x ,y))))
 
-(run 1 (q) (fresh (x y z)
-                  (=/= z 8)
-                  (== x y)
-                  (== x z)
-                  (== 3 y)
-                  (== q `(,x ,y ,z))))
+  (run 1 (q) (fresh (x y)
+                    (== q x)
+                    (== `(a b ,x) `(a b c))))
 
-(run 1 (q) (fresh (x y z)
-                  (=/= z 8)
-                  (== x y)
-                  (== x z)
-                  (== 3 y)
-                  (== 1 z)
-                  (== q `(,x ,y ,z))))
+  (funcall (fives-and-sixes) empty-state)
 
-(run 5 (q)
-  (fresh (x y z)
-    (== x z)
-    (== 3 y)
-    (=/= z y)
-    (== q `(,x ,y ,z))))
+  (take 1 (funcall (fives-and-sixes) empty-state))
 
-(run 2 (q)
-  (fresh (w x y)
-    (conde
-      ((== `(,x ,w ,x) q)
-       (== y w))
-      ((== `(,w ,x ,w) q)
-       (== y w)))))
+  (take 3 (funcall (fives-and-sixes) '((() . 0) . ())))
 
-(run* (x y) (== x 9) (== y 42))
+  (run 5 (q) (fresh (x y)
+               (caro `(grape raisin pear) x)
+               (caro '((a) (b) (c)) y)
+               (== (cons x y) q)))
 
-(run* (p) (=/= p 1))
+  (run* (q) (cdro '(acorn pear) q))
 
-(run* (p) (=/= 1 p) (== 1 p))
+  (run* (q) (fresh (v)
+                 (cdro '(a c o r n) v)
+                 (fresh (w)
+                  (cdro v w)
+                  (caro  w q))))
 
-(run* (q)
-  (fresh (p r)
-    (=/= '(1 2) `(,p ,r))
-    (== `(,p ,r) q)))
+  (run 5 (q) (fresh (x y)
+                   (cdro '(grape raisin pear) x)
+                   (caro '((a) (b) (c)) y)
+                   (== (cons x y) q)))
 
-(run* (q)
-  (fresh (p r)
-    (=/= '(1 2) `(,p ,r))
-    (== 1 p)
-    (== `(,p ,r) q)))
+  (run* (q) (cdro '(c o r n) `(,q r n)))
 
-(run* (q)
-  (fresh (p r)
-    (=/= '(1 2) `(,p ,r))
-    (== r 2)
-    (== 1 p)
-    (== `(,p ,r) q)))
+  (run* (q) (fresh (x)
+                  (cdro q '(c o r n))
+                  (caro q x)
+                  (== 'a x)))
 
-(run* (q)
-  (fresh (a b c)
-        (disj+
-           (== q 1)
-           (== q 2)
-           (== q 3))))
+  (run* (q) (membero 'olive '(virgin olive oil)))
 
-(run 2 (q)
-       (== 1 q)
-       (== 1 1))
+  (run 1 (q) (membero q '(virgin olive oil)))
 
-(run* (r)
-    (fresh (y x)
-      (== `(,x ,y) r)))
+  (run 1 (q) (membero q '(olive oil)))
 
-(run* (q)
-  (== q (list 1 2 3)))
+  (run* (q) (caro '(virgin olive oil) 'olive))
 
-(run* (r) (fresh (x y z)
-                 (== `(e a d ,x) r)
-                 (conso y `(a ,z c) r)))
+  (run* (q) (caro '(virgin olive oil) 'virgin))
 
-(run* (x) (conso x `(a ,x c) `(d a ,x c)))
+  (run 5 (q) (== (cons 'virgin q) '(virgin olive oil)))
 
-(run* (x) (conso x `(a ,x c) `(d a ,x d c)))
+  (run* (q) (membero 4 '(1 2 3)))
 
-(run 10 (q)
-       (conde
-          ((== q 1))
-          ((=/= q 2))))
+  (run* (q) (fresh (r)
+                  (== `(Result ,r) q)
+                  (membero r '(1 2 3))))
 
-(run* (q)
-  (fresh (a b c)
-        (conde
-           ((== a 1) (== b a) (== c a) (=/= c 1))
-           ((== a 2)(== b 3)(== c a)))
-       (== q `(,a ,b ,c))))
+  (run 3 (q) (membero 1 q))
 
-(run 5 (q)
-     (fresh (x y)
-            (== x 'pear)
-            (=/= y x)
-            (== q `(,x ,y))))
+  (run* (q) (conso 1 '(2 3) q))
 
-(run 1 (q) (fresh (x y)
-                  (== q x)
-                  (== `(a b ,x) `(a b c))))
+  (run 1 (q) (conso 1 q '(1 2 3)))
 
-(funcall (fives-and-sixes) empty-state)
+  (run* (q) (conso 1 `(2 ,q) '(1 2 3)))
 
-(take 1 (funcall (fives-and-sixes) empty-state))
+  (run* (q) (fresh (a b)
+                   (conso a `(2 ,b) '(1 2 3))
+                   (== q (list a b))))
 
-(take 3 (funcall (fives-and-sixes) '((() . 0) . ())))
+  (run* (x y)
+        (appendo x '(3 4 5) '(1 2 3 4 5)))
 
-(run 5 (q) (fresh (x y)
-             (caro `(grape raisin pear) x)
-             (caro '((a) (b) (c)) y)
-             (== (cons x y) q)))
+  ;(runi (x y)
+        ;(appendo x y '(1 2 3 4 5)))
 
-(run* (q) (cdro '(acorn pear) q))
+  (run 5 (x y) (== x y) (=/= x 5)(=/= y 9)(=/= x 3))
 
-(run* (q) (fresh (v)
-               (cdro '(a c o r n) v)
-               (fresh (w)
-                (cdro v w)
-                (caro  w q))))
+  (run 5 (x y) (conde
+                 ((== x y) (=/= x 5)(=/= y 9)(=/= x 3))
+                 ((fresh (a b)
+                        (== a 3)
+                        (== b 9)
+                        (== x a)
+                        (=/= y b)))))
 
-(run 5 (q) (fresh (x y)
-                 (cdro '(grape raisin pear) x)
-                 (caro '((a) (b) (c)) y)
-                 (== (cons x y) q)))
+  (run 5 (x y z) (fresh (a b c)
+                        (conde
+                          ((== x a)
+                           (== b z)
+                           (=/= a y)
+                           (== z 9)
+                           (== a z))
+                          ((== x 23)
+                           (== c 32)
+                           (=/= z y)
+                           (=/= y 45)))))
 
-(run* (q) (cdro '(c o r n) `(,q r n)))
-
-(run* (q) (fresh (x)
-                (cdro q '(c o r n))
-                (caro q x)
-                (== 'a x)))
-
-(run* (q) (membero 'olive '(virgin olive oil)))
-
-(run 1 (q) (membero q '(virgin olive oil)))
-
-(run 1 (q) (membero q '(olive oil)))
-
-(run* (q) (caro '(virgin olive oil) 'olive))
-
-(run* (q) (caro '(virgin olive oil) 'virgin))
-
-(run 5 (q) (== (cons 'virgin q) '(virgin olive oil)))
-
-(run* (q) (membero 4 '(1 2 3)))
-
-(run* (q) (fresh (r)
-                (== `(Result ,r) q)
-                (membero r '(1 2 3))))
-
-(run 3 (q) (membero 1 q))
-
-(run* (q) (conso 1 '(2 3) q))
-
-(run 1 (q) (conso 1 q '(1 2 3)))
-
-(run* (q) (conso 1 `(2 ,q) '(1 2 3)))
-
-(run* (q) (fresh (a b)
-                 (conso a `(2 ,b) '(1 2 3))
-                 (== q (list a b))))
-
-(run* (x y)
-      (appendo x '(3 4 5) '(1 2 3 4 5)))
-
-;(runi (x y)
-      ;(appendo x y '(1 2 3 4 5)))
-
-(run 5 (x y) (== x y) (=/= x 5)(=/= y 9)(=/= x 3))
-
-(run 5 (x y) (conde
-               ((== x y) (=/= x 5)(=/= y 9)(=/= x 3))
-               ((fresh (a b)
-                      (== a 3)
-                      (== b 9)
-                      (== x a)
-                      (=/= y b)))))
-
-(run 5 (x y z) (fresh (a b c)
-                      (conde
-                        ((== x a)
-                         (== b z)
-                         (=/= a y)
-                         (== z 9)
-                         (== a z))
-                        ((== x 23)
-                         (== c 32)
-                         (=/= z y)
-                         (=/= y 45)))))
-
-(run 5 (x y z) (fresh (a b c)
-                      (conde
-                        ((== x a)
-                         (== b z)
-                         (=/= a y)
-                         (== z 9)
-                         (== a z))
-                        ((== x 23)
-                         (== c 32)
-                         (=/= z y)
-                         (=/= y 45)
-                         (== y 67)))))
+  (run 5 (x y z) (fresh (a b c)
+                        (conde
+                          ((== x a)
+                           (== b z)
+                           (=/= a y)
+                           (== z 9)
+                           (== a z))
+                          ((== x 23)
+                           (== c 32)
+                           (=/= z y)
+                           (=/= y 45)
+                           (== y 67))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;    Parents.......   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -332,39 +334,43 @@
          (=/= p r)
          (=/= c1 c2)))
 
-(run 10 (q) (parent 'danni q))
-(run 10 (q) (grandparent 'danni q))
-(run 10 (q) (grandparent 'peter q))
-(run 10 (q) (grandparent 'will q))
-(run 10 (q) (cousin 'peter q))
-(run 10 (q) (cousin 'andy q))
+#+nil
+(progn
+  (run 10 (q) (parent 'danni q))
+  (run 10 (q) (grandparent 'danni q))
+  (run 10 (q) (grandparent 'peter q))
+  (run 10 (q) (grandparent 'will q))
+  (run 10 (q) (cousin 'peter q))
+  (run 10 (q) (cousin 'andy q)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(run* (q) (fresh (feline rodent reptile
-                         bird vertebrate invertebrate mammal animal)
-            (conde
-             ((== feline 'cat)(== animal feline)(== mammal feline)
-                  (=/= feline invertebrate)(=/= feline rodent)
-                  (=/= feline reptile)(=/= feline bird))
-             ((== rodent 'mouse)(== animal rodent)(== mammal rodent)
-                  (=/= rodent invertebrate)(=/= rodent feline)
-                  (=/= rodent reptile)(=/= rodent bird))
-             ((== feline 'tiger)(== animal feline)(== mammal feline)
-                  (=/= feline invertebrate)(=/= feline rodent)
-                  (=/= feline reptile)(=/= feline bird))
-             ((== feline 'puma)(== animal feline)(== mammal feline)
-                  (=/= feline invertebrate)(=/= feline rodent)
-                  (=/= feline reptile)(=/= feline bird))
-             ((== reptile 'snake)(== animal reptile)(== invertebrate reptile)
-                  (=/= vertebrate reptile)(=/= reptile mammal)
-                  (=/= reptile rodent)(=/= reptile feline)(=/= reptile bird))
-             ((== bird 'colibri)(== animal bird)(== vertebrate bird)
-                  (=/= mammal bird)(=/= bird invertebrate)
-                  (=/= bird rodent)(=/= bird reptile)(=/= bird feline)))
-            (== q animal)
-            (== q vertebrate)
-            (=/= q mammal)))
+#+nil
+(progn
+  (run* (q) (fresh (feline rodent reptile
+                           bird vertebrate invertebrate mammal animal)
+              (conde
+               ((== feline 'cat)(== animal feline)(== mammal feline)
+                    (=/= feline invertebrate)(=/= feline rodent)
+                    (=/= feline reptile)(=/= feline bird))
+               ((== rodent 'mouse)(== animal rodent)(== mammal rodent)
+                    (=/= rodent invertebrate)(=/= rodent feline)
+                    (=/= rodent reptile)(=/= rodent bird))
+               ((== feline 'tiger)(== animal feline)(== mammal feline)
+                    (=/= feline invertebrate)(=/= feline rodent)
+                    (=/= feline reptile)(=/= feline bird))
+               ((== feline 'puma)(== animal feline)(== mammal feline)
+                    (=/= feline invertebrate)(=/= feline rodent)
+                    (=/= feline reptile)(=/= feline bird))
+               ((== reptile 'snake)(== animal reptile)(== invertebrate reptile)
+                    (=/= vertebrate reptile)(=/= reptile mammal)
+                    (=/= reptile rodent)(=/= reptile feline)(=/= reptile bird))
+               ((== bird 'colibri)(== animal bird)(== vertebrate bird)
+                    (=/= mammal bird)(=/= bird invertebrate)
+                    (=/= bird rodent)(=/= bird reptile)(=/= bird feline)))
+              (== q animal)
+              (== q vertebrate)
+              (=/= q mammal))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;   THE ZEBRA PUZZLE    ;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -503,7 +509,9 @@
   (brit-lives-in-red-house solution))
 
 ;;---------------------------------------------
-(run* (solution) (fish-puzzle solution))
+#+nil
+(progn
+ (run* (solution) (fish-puzzle solution)))
 ;;---------------------------------------------
 
 ;;More.....
@@ -522,7 +530,9 @@
       (german-plays-soccer solution))
 
 ;;---------------------------------------------
-(run 3 (solution) (fish-puzzle solution))
+#+nil
+(progn
+ (run 3 (solution) (fish-puzzle solution)))
 ;;---------------------------------------------
 
 ;;Almost there...
@@ -555,7 +565,9 @@
   (norvegian-lives-next-to-blue-house solution))
 
 ;;---------------------------------------------
-(run* (solution) (fish-puzzle solution))
+#+nil
+(progn
+ (run* (solution) (fish-puzzle solution)))
 ;;---------------------------------------------
 
 ;; Neither solution has anything to say about a fish, since the fish does not
@@ -572,15 +584,17 @@
       (membero house solution))))
 
 ;;---------------------------------------------
-(run* (fish-owner)
-  (fresh (solution)
-     (fish-puzzle solution)
-     (who-owns-the-fish? solution fish-owner)))
+#+nil
+(progn
+  (run* (fish-owner)
+    (fresh (solution)
+       (fish-puzzle solution)
+       (who-owns-the-fish? solution fish-owner)))
 
-(run* (q)
-  (fresh (solution)
-    (fish-puzzle solution)
-    (who-owns-the-fish? solution 'Norwegian)))
+  (run* (q)
+    (fresh (solution)
+      (fish-puzzle solution)
+      (who-owns-the-fish? solution 'Norwegian))))
 ;;---------------------------------------------
 
 
@@ -657,10 +671,12 @@
 ;;; NOTE: delaying (=/= p q) is WAY faster (cheaper constraint handling).
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(run 1 (q) (eval-expo q '() q))
+#+nil
+(progn
+ (run 1 (q) (eval-expo q '() q))
 
-(run 1 (x) (fresh (p q) (=/= p q) (eval-expo p '() q) (eval-expo q '() p) (== `(,p ,q) x)))
-(run 1 (x) (fresh (p q) (eval-expo p '() q) (eval-expo q '() p) (=/= p q) (== `(,p ,q) x)))
+ (run 1 (x) (fresh (p q) (=/= p q) (eval-expo p '() q) (eval-expo q '() p) (== `(,p ,q) x)))
+ (run 1 (x) (fresh (p q) (eval-expo p '() q) (eval-expo q '() p) (=/= p q) (== `(,p ,q) x))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; RELATIONAL INTERPRETER v1 — extended core (letrec + primitives)
@@ -680,7 +696,7 @@
        (== `(,a . ,d) exp)
        (== `(,v-a . ,v-d) val)
        (eval-expo/v1 a env v-a)
-       (proper-listo/v1 d env v-d))))
+       (proper-listo/v1 d env v-d)))))
 
 (defun eval-expo/v1 (exp env val)
   (conde
@@ -830,16 +846,18 @@
 ;;; Works, but may return correct solutions with dead code / overly general guards.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(run 1 (q x)
-  (eval-expo/v1
-    `(letrec ((append (lambda (xs)
-                        (lambda (ys)
-                          (if ,x
-                              ys
-                              (,q (car xs) ((append (cdr xs)) ys)))))))
-       ((append (quote (a b))) (quote (c d))))
-    '()
-    '(a b c d)))
+#+nil
+(progn
+  (run 1 (q x)
+    (eval-expo/v1
+      `(letrec ((append (lambda (xs)
+                          (lambda (ys)
+                            (if ,x
+                                ys
+                                (,q (car xs) ((append (cdr xs)) ys)))))))
+         ((append (quote (a b))) (quote (c d))))
+      '()
+      '(a b c d))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; SYNTHESIS MODE B — guided (bounded + role-aware search)
@@ -937,17 +955,19 @@
             (proc-deptho rator d-1)
             (value-deptho rand d-1))))))))
 
-(run 1 (qx)
-  (fresh (x q)
-    (bool-deptho x (peano 3))
-    (value-deptho q (peano 3))
-    (eval-expo/v1
-      `(letrec ((append (lambda (xs)
-                          (lambda (ys)
-                            (if ,x
-                                ys
-                                (cons ,q ((append (cdr xs)) ys)))))))
-         ((append (quote (a b))) (quote (c d))))
-      '()
-      '(a b c d))
-    (== `(,x ,q) qx)))
+#+nil
+(progn
+  (run 1 (qx)
+    (fresh (x q)
+      (bool-deptho x (peano 3))
+      (value-deptho q (peano 3))
+      (eval-expo/v1
+        `(letrec ((append (lambda (xs)
+                            (lambda (ys)
+                              (if ,x
+                                  ys
+                                  (cons ,q ((append (cdr xs)) ys)))))))
+           ((append (quote (a b))) (quote (c d))))
+        '()
+        '(a b c d))
+      (== `(,x ,q) qx))))
