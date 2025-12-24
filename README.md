@@ -30,7 +30,7 @@ least, as far as I know).
 version,  as  per  the  paper  *A  tutorial  reconstruction  of  miniKanren with
 constraints*        [Bharathi       Ramana        Joshi,        William       E.
 Byrd](https://drive.google.com/file/d/1svTPpIowx4InQIaUU3DyVEMpcoSZP6Bm/view?usp=sharing),
-where the first argument is required to be a symbol only. Also includes a tiny relational interpreter (see playground.lisp), 
+where the first argument is required to be a symbol only. Also includes a tiny relational interpreter (see [playground](src/playground.lisp)), 
 capable of generating **quines** (and even *twines*. See: *miniKanren, Live and Untagged
 Quine Generation via Relational Interpreters (Programming Pearl)*   [William E. Byrd, Eric Holk, Daniel P. Friedman](http://webyrd.net/quines/quines.pdf)).
 4.  *Reification* of **all** the logic queries variables `x x0...` in `(run _ (x x0...)...)`.  It looks
